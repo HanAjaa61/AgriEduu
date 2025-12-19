@@ -2,7 +2,7 @@
   <nav class="navbar">
     <div class="navbar-container">
       <RouterLink to="/" class="navbar-logo">
-        <img src="@/assets/agriEdu logo.png" alt="AgriEdu Logo" class="logo-img" />
+        <img src="@/assets/agriedu_logo.png" alt="AgriEdu Logo" class="logo-img" />
         <span class="logo-text">AgriEdu</span>
       </RouterLink>
 
