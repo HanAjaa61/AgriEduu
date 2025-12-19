@@ -20,6 +20,18 @@
 
         <!-- RIGHT SIDE — FORM -->
         <form @submit.prevent="handleRegister" class="auth-form">
+
+          <!-- PILIH AVATAR -->
+          <div class="form-group center-avatar">
+            <img
+              :src="selectedAvatar"
+              class="avatar-display"
+              @click="showAvatarPopup = true"
+              @error="handleImageError"
+            />
+            <p class="avatar-hint">Klik gambar untuk pilih avatar</p>
+          </div>
+
           <div class="form-group">
             <label for="username">Username</label>
             <input type="text" id="username" v-model="username" placeholder="Masukkan username" required />
@@ -39,8 +51,7 @@
               placeholder="••••••••"
               required
             />
-            <span class="toggle-password" @click="showPassword = !showPassword">
-            </span>
+            <span class="toggle-password" @click="showPassword = !showPassword"></span>
           </div>
 
           <div class="form-group password-wrapper">
@@ -52,8 +63,7 @@
               placeholder="••••••••"
               required
             />
-            <span class="toggle-password" @click="showConfirmPassword = !showConfirmPassword">
-            </span>
+            <span class="toggle-password" @click="showConfirmPassword = !showConfirmPassword"></span>
             <transition name="fade">
               <p v-if="passwordMismatch" class="error-message">Password tidak cocok.</p>
             </transition>
@@ -65,40 +75,79 @@
       </div>
     </div>
 
+    <!-- POPUP AVATAR -->
+    <div
+      v-if="showAvatarPopup"
+      class="avatar-popup-overlay"
+      @click.self="showAvatarPopup = false"
+    >
+      <div class="avatar-popup">
+        <h3>Pilih Avatar</h3>
+        <div class="avatar-options">
+          <img
+            v-for="(avatar, index) in presetAvatars"
+            :key="index"
+            :src="avatar"
+            :class="{ selected: avatar === selectedAvatar }"
+            @click="chooseAvatar(avatar)"
+            class="avatar-img"
+          />
+        </div>
+        <button class="btn-cancel" @click="showAvatarPopup = false">Tutup</button>
+      </div>
+    </div>
+
     <!-- NOTIFICATION TOAST -->
     <div v-if="showToast" class="toast" :class="toastType">
       <span>{{ toastMessage }}</span>
       <button class="close-btn" @click="showToast = false">&times;</button>
     </div>
-
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
-import { auth } from '@/firebase'; // Ambil auth dari firebase.js
-import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth"; // Firebase register
+import { ref, computed, onMounted } from 'vue';
+import { auth } from '@/firebase';
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 
-// Form state
+// ✅ import semua avatar agar aman deploy Vercel
+import defaultAvatar from '@/assets/default.png';
+import profile1 from '@/assets/profile1.png';
+import profile2 from '@/assets/profil2.png';
+import profile3 from '@/assets/profile3.png';
+import profile4 from '@/assets/profile4.png';
+
 const username = ref('');
 const email = ref('');
 const password = ref('');
 const confirmPassword = ref('');
 
-// Password visibility
 const showPassword = ref(false);
 const showConfirmPassword = ref(false);
 
-// Notification state
 const showToast = ref(false);
 const toastMessage = ref('');
 const toastType = ref('success');
+
+const showAvatarPopup = ref(false);
+
+const presetAvatars = [defaultAvatar, profile1, profile2, profile3, profile4];
+const selectedAvatar = ref(defaultAvatar);
 
 const showNotification = (message, type = 'success') => {
   toastMessage.value = message;
   toastType.value = type;
   showToast.value = true;
-  setTimeout(() => { showToast.value = false; }, 3000);
+  setTimeout(() => (showToast.value = false), 3000);
+};
+
+const handleImageError = () => {
+  selectedAvatar.value = defaultAvatar;
+};
+
+const chooseAvatar = (avatar) => {
+  selectedAvatar.value = avatar;
+  showAvatarPopup.value = false;
 };
 
 const isPasswordStrong = computed(() => {
@@ -115,57 +164,43 @@ const passwordMismatch = computed(() => {
   return confirmPassword.value && password.value !== confirmPassword.value;
 });
 
-// =========================================
-// 🚀 REGISTER VIA FIREBASE AUTH
-// =========================================
 const handleRegister = async () => {
   if (!isPasswordStrong.value) {
     showNotification('❌ Password terlalu lemah!', 'error');
     return;
   }
-
   if (passwordMismatch.value) {
     showNotification('Konfirmasi password tidak cocok!', 'error');
     return;
   }
 
   try {
-    // Register user
-    const userCredential = await createUserWithEmailAndPassword(
-      auth,
-      email.value,
-      password.value
-    );
-
+    const userCredential = await createUserWithEmailAndPassword(auth, email.value, password.value);
     const user = userCredential.user;
 
-    // Update profile → simpan username
-    await updateProfile(user, { displayName: username.value });
+    await updateProfile(user, {
+      displayName: username.value,
+      photoURL: selectedAvatar.value
+    });
 
     showNotification('✅ Registrasi berhasil! Anda dapat login sekarang.', 'success');
 
-    // Redirect setelah 1.5 detik
     setTimeout(() => {
-      window.location.href = "/login";
+      window.location.href = '/login';
     }, 1500);
-
   } catch (error) {
-    console.error("Firebase Error:", error);
-
-    if (error.code === "auth/email-already-in-use") {
-      showNotification("❌ Email sudah digunakan!", "error");
-    } 
-    else if (error.code === "auth/invalid-email") {
-      showNotification("❌ Format email tidak valid!", "error");
-    }
-    else if (error.code === "auth/weak-password") {
-      showNotification("❌ Password terlalu lemah!", "error");
-    }
-    else {
-      showNotification("❌ Terjadi kesalahan, coba lagi.", "error");
-    }
+    console.error('Firebase Error:', error);
+    if (error.code === 'auth/email-already-in-use') showNotification('❌ Email sudah digunakan!', 'error');
+    else if (error.code === 'auth/invalid-email') showNotification('❌ Format email tidak valid!', 'error');
+    else if (error.code === 'auth/weak-password') showNotification('❌ Password terlalu lemah!', 'error');
+    else showNotification('❌ Terjadi kesalahan, coba lagi.', 'error');
   }
 };
+
+// Optional: set default avatar saat mount
+onMounted(() => {
+  selectedAvatar.value = defaultAvatar;
+});
 </script>
 
 <style scoped>
