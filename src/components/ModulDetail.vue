@@ -1,0 +1,401 @@
+<template>
+  <div class="page-wrapper">
+    <div v-if="isLoading" class="loading-overlay">
+      <div class="loading-content">
+        <div class="loader"></div>
+        <p class="loading-text">{{ loadingMessage }}</p>
+      </div>
+    </div>
+
+    <button class="back-btn" @click="goBack">← Kembali</button>
+
+    <div class="detail-card">
+      <h1 class="title">{{ modul.title }}</h1>
+      <p class="subtitle">{{ modul.description }}</p>
+
+      <div v-if="isCreator && modul.status === 'draft'" class="form-card">
+        <h2 class="section-title">Isi Materi Modul</h2>
+        <div class="input-group">
+          <label>Materi Lengkap</label>
+          <textarea v-model="userMaterial" placeholder="Tulis materi lengkap di sini..."></textarea>
+        </div>
+        <div class="input-group">
+          <label>Link Video YouTube (opsional)</label>
+          <input type="text" v-model="videoLink" placeholder="Masukkan link YouTube" />
+        </div>
+        <button class="save-btn" @click="saveMaterial">Simpan Materi</button>
+      </div>
+
+      <div v-if="isAdmin && modul.status === 'pending'" class="admin-section">
+        <h2 class="section-title">Panel Verifikasi Admin</h2>
+        <div v-if="creatorMaterial" class="materi-card">
+          <p class="materi-text">{{ creatorMaterial.text }}</p>
+          <small v-if="creatorMaterial.videoLink" class="video-link-box">
+            Video: <a :href="creatorMaterial.videoLink" target="_blank">{{ creatorMaterial.videoLink }}</a>
+          </small>
+        </div>
+        <div class="admin-buttons">
+          <button class="verify-btn" @click="approveModul">✅ Verifikasi Modul</button>
+          <button class="reject-btn" @click="showRejectModal = true">❌ Tolak Modul</button>
+        </div>
+      </div>
+
+      <div v-if="allMaterials.length && (modul.status === 'approved' || !modul.status)" class="materi-wrapper">
+        <h2 class="section-title">Materi Lengkap</h2>
+        <div v-for="(m, i) in allMaterials" :key="i" class="materi-card">
+          <p class="materi-text">{{ m.text }}</p>
+          <small v-if="m.videoLink" class="video-link-box">
+            Video: <a :href="m.videoLink" target="_blank">{{ m.videoLink }}</a>
+          </small>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="showRejectModal" class="modal-overlay" @click.self="showRejectModal = false">
+      <div class="reject-modal">
+        <h2 class="modal-title">Pilih Alasan Penolakan</h2>
+        <div class="reject-options">
+          <label v-for="(reason, idx) in rejectReasons" :key="idx" class="checkbox-label">
+            <input type="checkbox" :value="reason" v-model="selectedReasons" />
+            <span>{{ reason }}</span>
+          </label>
+        </div>
+        <div class="modal-buttons">
+          <button class="cancel-btn" @click="showRejectModal = false">Batal</button>
+          <button class="submit-btn" @click="submitRejection">Simpan</button>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="toast.show" :class="['toast', toast.type, toast.anim]">{{ toast.message }}</div>
+  </div>
+</template>
+
+<script>
+import { ref, onMounted, computed } from "vue";
+import { db, auth } from "@/firebase.js";
+import { doc, getDoc, collection, addDoc, query, where, updateDoc, onSnapshot } from "firebase/firestore";
+import { useRoute } from "vue-router";
+import { forbiddenWords } from "@/utils/ForbiddenWords.js";
+import { requiredWords } from "@/utils/requiredWords.js";
+import { onAuthStateChanged } from "firebase/auth";
+
+export default {
+  name: "ModulDetail",
+  setup() {
+    const route = useRoute();
+    const modulId = route.params.id;
+    const modul = ref({});
+    const authUser = ref(null);
+    const isAdmin = ref(false);
+    const userMaterial = ref("");
+    const videoLink = ref("");
+    const allMaterials = ref([]);
+    const toast = ref({ show: false, message: "", type: "", anim: "" });
+    const showRejectModal = ref(false);
+    const selectedReasons = ref([]);
+    const isLoading = ref(false);
+    const loadingMessage = ref("Memuat Materi");
+
+    const rejectReasons = [
+      "❌ Judul modul tidak relevan", "❌ Deskripsi modul tidak relevan", "❌ Materi modul tidak relevan",
+      "❌ Modul yang dibuat tidak dapat diverifikasi kebenarannya", "❌ Link video yang dikirim tidak relevan",
+      "❌ Membuat modul pada Bab yang tidak relevan",
+      "⚠️ Penyebab lainnya selain judul, deskripsi, modul, materi, dan link video modul yang dibuat"
+    ];
+
+    onAuthStateChanged(auth, async (user) => {
+      authUser.value = user;
+      if (user) await checkAdminStatus(user.uid);
+      else isAdmin.value = false;
+    });
+
+    const checkAdminStatus = async (uid) => {
+      try {
+        const adminDoc = await getDoc(doc(db, "admins", uid));
+        isAdmin.value = adminDoc.exists() && adminDoc.data().isAdmin === true;
+      } catch { isAdmin.value = false; }
+    };
+
+    const fetchModul = async () => {
+      const docRef = doc(db, "modul", modulId);
+      
+      // Real-time listener untuk modul
+      onSnapshot(docRef, (docSnap) => {
+        if (docSnap.exists()) {
+          modul.value = docSnap.data();
+        }
+      }, (error) => {
+        console.error("Error fetching modul:", error);
+      });
+    };
+
+    const fetchMaterials = async () => {
+      const q = query(collection(db, "modul_progress"), where("modulId", "==", modulId));
+      
+      // Real-time listener untuk materials
+      onSnapshot(q, (snapshot) => {
+        allMaterials.value = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+      }, (error) => {
+        console.error("Error fetching materials:", error);
+      });
+    };
+
+    const isCreator = computed(() => authUser.value && modul.value.createdBy === authUser.value.uid);
+    const creatorMaterial = computed(() => {
+      if (!modul.value.createdBy) return null;
+      return allMaterials.value.find((m) => m.userId === modul.value.createdBy);
+    });
+
+    const normalizeText = (text) => {
+      if (!text) return "";
+      let normalized = text.toLowerCase();
+      const leetMap = { "0": "o", "1": "i", "2": "z", "3": "e", "4": "a", "5": "s", "6": "g", "7": "t", "8": "b", "9": "g" };
+      normalized = normalized.split("").map(c => leetMap[c] || c).join("");
+      return normalized.replace(/[^a-z]/g, "");
+    };
+
+    const checkForbiddenWords = (text) => {
+      const normalized = normalizeText(text);
+      return [...new Set(forbiddenWords.filter((bad) => normalized.includes(bad.toLowerCase())))];
+    };
+
+    const checkRequiredWords = (text) => {
+      const normalized = normalizeText(text);
+      return requiredWords.some((word) => normalized.includes(word.toLowerCase().replace(/\s+/g, "")));
+    };
+
+    const showToast = (message, type = "error", duration = 3000) => {
+      toast.value = { show: true, message, type, anim: "fade-in" };
+      setTimeout(() => (toast.value.anim = "fade-out"), duration - 500);
+      setTimeout(() => (toast.value.show = false), duration);
+    };
+
+    const isValidYouTube = (link) => {
+      if (!link) return true;
+      const regex = /^(https?:\/\/)?(www\.youtube\.com|youtu\.?be)\/.+$/;
+      return regex.test(link);
+    };
+
+    const saveMaterial = async () => {
+      if (userMaterial.value.length < 20 || userMaterial.value.length > 3000) {
+        return showToast("⚠️ Panjang Materi harus 20-3000 karakter");
+      }
+
+      const text = userMaterial.value + " " + videoLink.value;
+      const detected = checkForbiddenWords(text);
+      if (detected.length) {
+        return showToast("⚠️ Terdeteksi kata terlarang: " + detected.join(", "));
+      }
+
+      if (videoLink.value && !isValidYouTube(videoLink.value)) {
+        return showToast("⚠️ Link YouTube tidak valid");
+      }
+
+      loadingMessage.value = "Menyimpan Materi";
+      isLoading.value = true;
+
+      try {
+        const hasRequiredWord = checkRequiredWords(userMaterial.value);
+        
+        await addDoc(collection(db, "modul_progress"), {
+          modulId, userId: authUser.value?.uid || "anonymous", text: userMaterial.value,
+          videoLink: videoLink.value || "", date: new Date()
+        });
+        
+        await updateDoc(doc(db, "modul", modulId), { 
+          status: "pending", 
+          needsVerification: !hasRequiredWord,
+          updatedAt: new Date()
+        });
+        
+        showToast("✅ Materi berhasil disimpan dan menunggu verifikasi admin", "success", 2000);
+        
+        setTimeout(() => {
+          isLoading.value = false;
+          if (window.history.length > 1) {
+            window.history.back();
+          }
+        }, 2000);
+      } catch (error) {
+        console.error("Error saving material:", error);
+        isLoading.value = false;
+        showToast("❌ Gagal menyimpan materi, silakan coba lagi", "error");
+        await fetchMaterials();
+        await fetchModul();
+      }
+    };
+
+    const approveModul = async () => {
+      loadingMessage.value = "Memverifikasi Modul";
+      isLoading.value = true;
+      try {
+        await updateDoc(doc(db, "modul", modulId), { 
+          status: "approved", 
+          needsVerification: false,
+          verifiedAt: new Date(),
+          verifiedBy: authUser.value.uid
+        });
+        
+        showToast("✅ Admin telah berhasil memverifikasi modul", "success", 2000);
+        
+        setTimeout(() => {
+          isLoading.value = false;
+          if (window.history.length > 1) {
+            window.history.back();
+          }
+        }, 2000);
+      } catch (error) {
+        console.error("Error approving modul:", error);
+        isLoading.value = false;
+        showToast("❌ Admin gagal memverifikasi modul", "error");
+      }
+    };
+
+    const submitRejection = async () => {
+      if (selectedReasons.value.length === 0) {
+        return showToast("⚠️ Pilih minimal satu alasan penolakan");
+      }
+
+      loadingMessage.value = "Menyimpan Catatan";
+      showRejectModal.value = false;
+      isLoading.value = true;
+      try {
+        const rejectionNote = selectedReasons.value.join("\n");
+        await updateDoc(doc(db, "modul", modulId), { 
+          status: "rejected", 
+          description: rejectionNote, 
+          needsVerification: false,
+          rejectedAt: new Date(),
+          rejectedBy: authUser.value.uid
+        });
+        
+        showToast("✅ Admin berhasil menolak modul", "success", 2000);
+        
+        setTimeout(() => {
+          isLoading.value = false;
+          selectedReasons.value = [];
+          if (window.history.length > 1) {
+            window.history.back();
+          }
+        }, 2000);
+      } catch (error) {
+        console.error("Error rejecting modul:", error);
+        isLoading.value = false;
+        showRejectModal.value = true;
+        showToast("❌ Admin gagal menolak modul", "error");
+      }
+    };
+
+    const goBack = () => {
+      // Cek apakah ada history sebelumnya
+      if (window.history.length > 1) {
+        window.history.back();
+      }
+    };
+
+    onMounted(async () => { 
+      await fetchModul(); 
+      await fetchMaterials(); 
+    });
+
+    return { 
+      modul, 
+      userMaterial, 
+      videoLink, 
+      saveMaterial, 
+      allMaterials, 
+      creatorMaterial, 
+      isCreator, 
+      isAdmin, 
+      toast, 
+      goBack, 
+      showRejectModal, 
+      rejectReasons, 
+      selectedReasons, 
+      approveModul, 
+      submitRejection, 
+      isLoading, 
+      loadingMessage 
+    };
+  }
+};
+</script>
+
+<style scoped>
+@import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap");
+
+*{-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;touch-action:manipulation;}
+input,textarea,select,button{font-size:16px!important;}
+
+@keyframes fadeIn{from{opacity:0;transform:translateY(-5px);}to{opacity:1;transform:translateY(0);}}
+@keyframes toastFadeIn{from{opacity:0;transform:translate(-50%,-20px);}to{opacity:1;transform:translate(-50%,0);}}
+@keyframes toastFadeOut{from{opacity:1;transform:translate(-50%,0);}to{opacity:0;transform:translate(-50%,-20px);}}
+@keyframes spin{0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}
+@keyframes loadingFadeIn{from{opacity:0;}to{opacity:1;}}
+@keyframes materiFadeIn{from{opacity:0;transform:translateY(15px);}to{opacity:1;transform:translateY(0);}}
+@keyframes videoFadeIn{from{opacity:0;transform:scale(0.95);}to{opacity:1;transform:scale(1);}}
+
+.loading-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:#4caf50;display:flex;justify-content:center;align-items:center;z-index:9999;animation:loadingFadeIn 0.3s ease-out;}
+.loading-content{display:flex;flex-direction:column;align-items:center;gap:20px;}
+.loader{width:70px;height:70px;border:6px solid rgba(255,255,255,0.2);border-top:6px solid white;border-right:6px solid rgba(255,255,255,0.8);border-radius:50%;animation:spin 0.6s linear infinite;}
+.loading-text{color:white;font-size:clamp(1.1rem,3vw,1.4rem);font-weight:600;font-family:'Montserrat',sans-serif;letter-spacing:0.5px;text-shadow:0 2px 4px rgba(0,0,0,0.1);}
+.page-wrapper{background:#eef7ec;min-height:100vh;padding:20px 15px;display:flex;flex-direction:column;align-items:center;font-family:"Montserrat",sans-serif;}
+.back-btn{align-self:flex-start;background:#d8ead7;color:#2e6d3b;border:none;padding:10px 20px;border-radius:50px;font-weight:600;cursor:pointer;margin:10px 0 20px 0;transition:0.3s;font-size:clamp(0.85rem,2vw,0.95rem);}
+.back-btn:hover{background:#cbe3c9;transform:translateX(-3px);}
+.detail-card{width:100%;max-width:860px;background:white;padding:clamp(25px,4vw,35px) clamp(18px,3.5vw,30px);border-radius:22px;box-shadow:0 10px 30px rgba(0,0,0,0.08);word-wrap:break-word;overflow-wrap:break-word;box-sizing:border-box;}
+.title{font-size:clamp(1.5rem,4vw,2.2rem);font-weight:700;color:#255d35;margin-bottom:5px;line-height:1.3;word-wrap:break-word;overflow-wrap:break-word;}
+.subtitle{color:#666;font-size:clamp(0.9rem,2vw,1rem);margin-bottom:30px;white-space:pre-line;line-height:1.6;word-wrap:break-word;overflow-wrap:break-word;}
+.form-card,.admin-section{background:#f7fbf6;padding:clamp(20px,3vw,25px) clamp(15px,2.5vw,20px);border-radius:18px;box-shadow:0 6px 18px rgba(0,0,0,0.05);margin-bottom:30px;animation:fadeIn 0.5s;word-wrap:break-word;overflow-wrap:break-word;box-sizing:border-box;}
+.admin-section .materi-card{animation:materiFadeIn 0.5s ease-out forwards;animation-delay:0.2s;opacity:0;}
+.admin-section .video-link-box{animation:videoFadeIn 0.4s ease-out forwards;animation-delay:0.4s;opacity:0;}
+.section-title{font-size:clamp(1.1rem,2.5vw,1.3rem);font-weight:600;color:#2e6d3b;margin-bottom:15px;padding-left:12px;border-left:4px solid #a6d8a3;word-wrap:break-word;}
+.input-group{display:flex;flex-direction:column;gap:6px;margin-bottom:15px;}
+.input-group label{font-weight:600;color:#333;font-size:clamp(0.85rem,2vw,0.95rem);}
+.input-group input,.input-group textarea{padding:12px;border-radius:12px;border:1px solid #cbd5c4;font-size:clamp(0.85rem,2vw,0.95rem);transition:0.3s;font-family:'Poppins',sans-serif;width:100%;box-sizing:border-box;}
+.input-group input:focus,.input-group textarea:focus{border-color:#4caf50;box-shadow:0 0 6px rgba(76,175,80,0.25);outline:none;}
+textarea{min-height:130px;resize:vertical;}
+.save-btn{width:100%;padding:13px;background:#4caf50;color:white;border:none;border-radius:14px;font-weight:600;cursor:pointer;transition:0.3s;font-size:clamp(0.9rem,2vw,1rem);}
+.save-btn:hover{background:#3f8f43;transform:translateY(-2px);}
+.admin-buttons{display:flex;gap:15px;margin-top:20px;flex-wrap:wrap;}
+.verify-btn,.reject-btn{flex:1;min-width:150px;padding:13px 20px;border:none;border-radius:14px;font-weight:600;cursor:pointer;transition:0.3s;font-size:clamp(0.85rem,2vw,0.95rem);color:white;word-wrap:break-word;}
+.verify-btn{background:#4caf50;}
+.verify-btn:hover{background:#3f8f43;transform:translateY(-2px);}
+.reject-btn{background:#f44336;}
+.reject-btn:hover{background:#d32f2f;transform:translateY(-2px);}
+.materi-wrapper{margin-top:30px;}
+.materi-card{background:#f1f8f2;padding:18px 20px;border-radius:14px;margin-bottom:15px;box-shadow:0 4px 14px rgba(0,0,0,0.05);word-wrap:break-word;overflow-wrap:break-word;animation:materiFadeIn 0.6s ease-out forwards;opacity:0;}
+.materi-card:nth-child(1){animation-delay:0.1s;}
+.materi-card:nth-child(2){animation-delay:0.2s;}
+.materi-card:nth-child(3){animation-delay:0.3s;}
+.materi-card:nth-child(4){animation-delay:0.4s;}
+.materi-card:nth-child(5){animation-delay:0.5s;}
+.materi-card:nth-child(n+6){animation-delay:0.6s;}
+.materi-text{white-space:pre-line;margin-bottom:10px;color:#333;font-family:'Poppins',sans-serif;line-height:1.7;font-size:clamp(0.85rem,2vw,0.95rem);word-wrap:break-word;overflow-wrap:break-word;}
+.video-link-box{display:inline-block;padding:6px 10px;background:#d8ead7;color:#2e6d3b;border-radius:8px;font-size:clamp(0.75rem,1.8vw,0.85rem);word-break:break-all;max-width:100%;animation:videoFadeIn 0.5s ease-out forwards;animation-delay:0.3s;opacity:0;}
+.video-link-box a{color:#2e6d3b;text-decoration:none;font-weight:600;word-break:break-all;}
+.video-link-box a:hover{text-decoration:underline;}
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;justify-content:center;align-items:center;z-index:999;padding:20px;}
+.reject-modal{background:white;padding:clamp(20px,4vw,30px);border-radius:18px;max-width:500px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 12px 30px rgba(0,0,0,0.12);animation:fadeIn 0.4s;}
+.modal-title{font-size:clamp(1.1rem,2.5vw,1.3rem);font-weight:600;color:#2e6d3b;margin-bottom:20px;padding-left:12px;border-left:4px solid #a6d8a3;}
+.reject-options{display:flex;flex-direction:column;gap:12px;margin:20px 0;}
+.checkbox-label{display:flex;align-items:flex-start;gap:10px;padding:12px;background:#f7fbf6;border-radius:10px;cursor:pointer;transition:0.3s;}
+.checkbox-label:hover{background:#e8f5e9;}
+.checkbox-label input[type="checkbox"]{width:18px;height:18px;cursor:pointer;margin-top:2px;flex-shrink:0;}
+.checkbox-label span{flex:1;font-size:clamp(0.82rem,2vw,0.92rem);color:#333;line-height:1.5;}
+.modal-buttons{display:flex;gap:15px;justify-content:flex-end;margin-top:20px;flex-wrap:wrap;}
+.cancel-btn,.submit-btn{padding:12px 25px;border:none;border-radius:12px;font-weight:600;cursor:pointer;transition:0.3s;font-size:clamp(0.85rem,2vw,0.95rem);color:white;flex:1;min-width:100px;}
+.cancel-btn{background:#f44336;}
+.cancel-btn:hover{background:#d32f2f;transform:translateY(-2px);}
+.submit-btn{background:#4caf50;}
+.submit-btn:hover{background:#3f8f43;transform:translateY(-2px);}
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);padding:13px 25px;border-radius:14px;font-weight:600;z-index:2000;max-width:90%;text-align:center;box-shadow:0 8px 20px rgba(0,0,0,0.15);font-size:clamp(0.85rem,2vw,0.95rem);color:white;word-wrap:break-word;}
+.toast.error{background:#f44336;}
+.toast.success{background:#4caf50;}
+.toast.fade-in{animation:toastFadeIn 0.5s ease-out forwards;}
+.toast.fade-out{animation:toastFadeOut 0.5s ease-out forwards;}
+
+@media(max-width:768px){.admin-buttons{flex-direction:column;}.verify-btn,.reject-btn{min-width:100%;}.modal-buttons{flex-direction:column;}.cancel-btn,.submit-btn{width:100%;min-width:100%;}.loader{width:60px;height:60px;border-width:5px;}}
+@media(max-width:480px){.loader{width:55px;height:55px;border-width:4px;}.toast{padding:10px 16px;font-size:0.8rem;}}
+</style>
