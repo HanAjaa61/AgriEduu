@@ -6,7 +6,7 @@
         
         <!-- LEFT SIDE -->
         <div class="card-left">
-          <img src="@/assets/AgriEdu Logo.png" alt="AgriEdu Logo" class="logo" />
+          <img src="@/assets/agriedu_logo.png" alt="AgriEdu Logo" class="logo" />
           <h1 class="title">Selamat Datang</h1>
           <p class="subtitle">Daftar sekarang untuk memulai perjalanan pertanian Anda.</p>
 

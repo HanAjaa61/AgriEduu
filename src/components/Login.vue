@@ -6,7 +6,7 @@
 
   <div class="login-container">
     <div class="login-card">
-      <img src="@/assets/AgriEdu Logo.png" alt="Logo" class="logo" />
+      <img src="@/assets/agriedu_logo.png" alt="Logo" class="logo" />
 
       <h2>Login</h2>
 
