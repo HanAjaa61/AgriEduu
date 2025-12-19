@@ -48,11 +48,12 @@
 
           <div class="avatar-options">
             <img
-              v-for="url in presetAvatars"
-              :key="url"
+              v-for="(url, index) in presetAvatars"
+              :key="index"
               :src="url"
               :class="{ selected: url === selectedAvatar }"
               @click="chooseAvatar(url)"
+              @error="handleImageError"
               class="avatar-img"
             />
           </div>
@@ -73,31 +74,31 @@ import { auth } from "@/firebase.js";
 import { updateProfile } from "firebase/auth";
 import { useProfileStore } from "@/stores/profile";
 
-// ✅ default avatar milikmu
-import defaultAvatar from "@/assets/default.png";
-
 const profileStore = useProfileStore();
 
 const username = ref("");
 const email = ref("");
-
 const showToast = ref(false);
 const toastMessage = ref("");
 const toastType = ref("success");
-
 const showAvatarPopup = ref(false);
 
-// ✅ preset avatars (aman + konsisten)
+// =====================
+// Semua avatar pakai folder public/avatars
+// =====================
 const presetAvatars = [
-  defaultAvatar,
-  "/src/assets/profile1.png",
-  "/src/assets/profil2.png",
-  "/src/assets/profile3.png",
-  "/src/assets/profile4.png"
+  "/avatars/default.png",
+  "/avatars/profile1.png",
+  "/avatars/profil2.png",
+  "/avatars/profile3.png",
+  "/avatars/profile4.png"
 ];
 
-const selectedAvatar = ref(defaultAvatar);
+const selectedAvatar = ref("/avatars/default.png");
 
+// =====================
+// Notification
+// =====================
 const showNotification = (msg, type = "success") => {
   toastMessage.value = msg;
   toastType.value = type;
@@ -105,20 +106,26 @@ const showNotification = (msg, type = "success") => {
   setTimeout(() => (showToast.value = false), 3000);
 };
 
-// ✅ fallback kalau gambar gagal load (Google sering begini)
+// =====================
+// Fallback avatar
+// =====================
 const handleImageError = () => {
-  selectedAvatar.value = defaultAvatar;
-  profileStore.setProfilePic(defaultAvatar);
+  selectedAvatar.value = "/avatars/default.png";
+  profileStore.setProfilePic("/avatars/default.png");
 };
 
+// =====================
 // Pilih avatar manual
+// =====================
 const chooseAvatar = (url) => {
   selectedAvatar.value = url;
   profileStore.setProfilePic(url);
   showAvatarPopup.value = false;
 };
 
+// =====================
 // Simpan profile
+// =====================
 const saveProfile = async () => {
   const user = auth.currentUser;
   if (!user) return;
@@ -128,14 +135,15 @@ const saveProfile = async () => {
       displayName: username.value,
       photoURL: selectedAvatar.value
     });
-
     showNotification("✅ Data berhasil disimpan!");
   } catch (err) {
     showNotification(`❌ Error: ${err.message}`, "error");
   }
 };
 
-// Load user info
+// =====================
+// Load user info saat mount
+// =====================
 onMounted(() => {
   const user = auth.currentUser;
   if (!user) return;
@@ -145,20 +153,15 @@ onMounted(() => {
 
   const photo = user.photoURL;
 
-  // Google photo (kadang gagal load → @error akan handle)
   if (photo && (photo.startsWith("http://") || photo.startsWith("https://"))) {
     selectedAvatar.value = photo;
     profileStore.setProfilePic(photo);
-  }
-  // Avatar lokal
-  else if (photo && photo.startsWith("/src/assets/")) {
+  } else if (presetAvatars.includes(photo)) {
     selectedAvatar.value = photo;
     profileStore.setProfilePic(photo);
-  }
-  // Default
-  else {
-    selectedAvatar.value = defaultAvatar;
-    profileStore.setProfilePic(defaultAvatar);
+  } else {
+    selectedAvatar.value = "/avatars/default.png";
+    profileStore.setProfilePic("/avatars/default.png");
   }
 });
 </script>
