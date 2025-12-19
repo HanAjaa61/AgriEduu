@@ -110,13 +110,9 @@ import { ref, computed, onMounted } from 'vue';
 import { auth } from '@/firebase';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 
-// ✅ import semua avatar agar aman deploy Vercel
-import defaultAvatar from '@/assets/default.png';
-import profile1 from '@/assets/profile1.png';
-import profile2 from '@/assets/profil2.png';
-import profile3 from '@/assets/profile3.png';
-import profile4 from '@/assets/profile4.png';
-
+// =====================
+// Form state
+// =====================
 const username = ref('');
 const email = ref('');
 const password = ref('');
@@ -131,9 +127,22 @@ const toastType = ref('success');
 
 const showAvatarPopup = ref(false);
 
-const presetAvatars = [defaultAvatar, profile1, profile2, profile3, profile4];
-const selectedAvatar = ref(defaultAvatar);
+// =====================
+// Preset avatars (public folder)
+// =====================
+const presetAvatars = [
+  '/avatars/default.png',
+  '/avatars/profile1.png',
+  '/avatars/profil2.png',
+  '/avatars/profile3.png',
+  '/avatars/profile4.png'
+];
 
+const selectedAvatar = ref('/avatars/default.png');
+
+// =====================
+// Notification
+// =====================
 const showNotification = (message, type = 'success') => {
   toastMessage.value = message;
   toastType.value = type;
@@ -141,8 +150,11 @@ const showNotification = (message, type = 'success') => {
   setTimeout(() => (showToast.value = false), 3000);
 };
 
+// =====================
+// Handle avatar
+// =====================
 const handleImageError = () => {
-  selectedAvatar.value = defaultAvatar;
+  selectedAvatar.value = '/avatars/default.png';
 };
 
 const chooseAvatar = (avatar) => {
@@ -150,6 +162,9 @@ const chooseAvatar = (avatar) => {
   showAvatarPopup.value = false;
 };
 
+// =====================
+// Password validation
+// =====================
 const isPasswordStrong = computed(() => {
   const pwd = password.value;
   const minLength = pwd.length >= 8;
@@ -164,6 +179,9 @@ const passwordMismatch = computed(() => {
   return confirmPassword.value && password.value !== confirmPassword.value;
 });
 
+// =====================
+// Register
+// =====================
 const handleRegister = async () => {
   if (!isPasswordStrong.value) {
     showNotification('❌ Password terlalu lemah!', 'error');
@@ -197,11 +215,11 @@ const handleRegister = async () => {
   }
 };
 
-// Optional: set default avatar saat mount
 onMounted(() => {
-  selectedAvatar.value = defaultAvatar;
+  selectedAvatar.value = '/avatars/default.png';
 });
 </script>
+
 
 <style scoped>
 
