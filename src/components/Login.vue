@@ -4,6 +4,12 @@
     <button class="close-btn" @click="showNotif = false">×</button>
   </div>
 
+  <!-- Loading overlay untuk Google Login -->
+  <div v-if="isGoogleLoading" class="loading-overlay">
+    <div class="loading-spinner"></div>
+    <p class="loading-text">Memproses login dengan Google...</p>
+  </div>
+
   <div class="login-container">
     <div class="login-card">
       <img src="@/assets/agriedu_logo.png" alt="Logo" class="logo" />
@@ -41,7 +47,7 @@
         <span class="line"></span>
       </div>
 
-      <button type="button" class="btn-google" @click="handleGoogleLogin">
+      <button type="button" class="btn-google" @click="handleGoogleLogin" :disabled="isGoogleLoading">
         <img
           src="https://img.icons8.com/color/16/000000/google-logo.png"
           alt="Google Logo"
@@ -57,12 +63,13 @@
 </template>
 
 <script>
-import { auth } from "@/firebase";
+import { auth, db } from "@/firebase";
 import {
   signInWithEmailAndPassword,
   GoogleAuthProvider,
   signInWithPopup,
 } from "firebase/auth";
+import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { useProfileStore } from "@/stores/profile";
 
 export default {
@@ -82,6 +89,7 @@ export default {
       showNotif: false,
       notifMessage: "",
       notifType: "",
+      isGoogleLoading: false,
     };
   },
 
@@ -148,6 +156,8 @@ export default {
           this.showNotification("Email tidak ditemukan!", "error");
         } else if (error.code === "auth/wrong-password") {
           this.showNotification("Password salah!", "error");
+        } else if (error.code === "auth/invalid-credential") {
+          this.showNotification("Email atau password salah!", "error");
         } else {
           this.showNotification(
             "❌ Terjadi kesalahan. Silakan coba lagi.",
@@ -159,16 +169,45 @@ export default {
 
     async handleGoogleLogin() {
       const provider = new GoogleAuthProvider();
-
       provider.setCustomParameters({
         prompt: "select_account",
       });
 
+      this.isGoogleLoading = true;
+
       try {
         const result = await signInWithPopup(auth, provider);
-        if (!result || !result.user) return;
+        if (!result || !result.user) {
+          this.isGoogleLoading = false;
+          return;
+        }
 
         const user = result.user;
+
+        // Cek apakah user sudah ada di Firestore
+        const userDocRef = doc(db, "users", user.uid);
+        const userDoc = await getDoc(userDocRef);
+
+        // Jika user baru, buat dokumen di Firestore
+        if (!userDoc.exists()) {
+          await setDoc(userDocRef, {
+            uid: user.uid,
+            email: user.email,
+            displayName: user.displayName || "User",
+            photoURL: user.photoURL || "",
+            createdAt: serverTimestamp(),
+            lastLogin: serverTimestamp(),
+          });
+        } else {
+          // Update last login untuk user yang sudah ada
+          await setDoc(
+            userDocRef,
+            {
+              lastLogin: serverTimestamp(),
+            },
+            { merge: true }
+          );
+        }
 
         this.showNotification(
           "✅ Login berhasil dengan Google! Selamat datang, " +
@@ -176,10 +215,14 @@ export default {
           "success"
         );
 
+        // Redirect setelah semua proses selesai
         setTimeout(() => {
+          this.isGoogleLoading = false;
           this.$router.push({ name: "HomePage" });
-        }, 800);
+        }, 1000);
       } catch (error) {
+        this.isGoogleLoading = false;
+
         if (
           error.code === "auth/popup-closed-by-user" ||
           error.code === "auth/cancelled-popup-request"
@@ -187,6 +230,7 @@ export default {
           return;
         }
 
+        console.error("Google Login Error:", error);
         this.showNotification(
           "❌ Gagal Login dengan Google. Coba lagi.",
           "error"
@@ -198,13 +242,21 @@ export default {
 </script>
 
 <style scoped>
+/* Container diperbaiki agar benar-benar center tanpa terpengaruh footer */
 .login-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 100vh;
-  background: #166534; /* Warna hijau gelap untuk background */
+  background: #166534;
   font-family: 'Montserrat', sans-serif;
+  z-index: 1;
+  overflow: auto;
+  padding: 20px;
 }
 
 .login-card {
@@ -216,6 +268,8 @@ export default {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   text-align: center;
   animation: fadeIn 0.6s ease-in-out;
+  position: relative;
+  z-index: 2;
 }
 
 .logo {
@@ -239,6 +293,7 @@ form input {
   transition: 0.3s;
   font-family: 'Montserrat', sans-serif;
   font-size: 1rem;
+  box-sizing: border-box;
 }
 
 form input:focus {
@@ -248,19 +303,18 @@ form input:focus {
 
 .password-wrapper {
   position: relative;
-  margin-bottom: 1rem; /* Tambahkan margin di wrapper */
+  margin-bottom: 1rem;
 }
 
 .password-wrapper input {
-  margin-bottom: 0; /* Hapus margin di input dalam wrapper */
+  margin-bottom: 0;
 }
 
 .toggle-password {
   position: absolute;
   right: 12px;
-  /* Sesuaikan agar lebih di tengah vertikal */
   top: 50%;
-  transform: translateY(-50%); 
+  transform: translateY(-50%);
   cursor: pointer;
   font-size: 1.1rem;
   user-select: none;
@@ -269,7 +323,7 @@ form input:focus {
 }
 
 .toggle-password:hover {
-    color: #333;
+  color: #333;
 }
 
 .btn-login {
@@ -284,14 +338,13 @@ form input:focus {
   transition: 0.3s;
   font-family: 'Montserrat', sans-serif;
   font-weight: 600;
-  margin-top: 0.5rem; /* Tambahkan sedikit ruang */
+  margin-top: 0.5rem;
 }
 
 .btn-login:hover {
   background: #43a047;
 }
 
-/* --- Pemisah "atau" --- */
 .separator {
   display: flex;
   align-items: center;
@@ -308,11 +361,10 @@ form input:focus {
   margin: 0 10px;
 }
 
-/* --- Tombol Login Google --- */
 .btn-google {
   width: 100%;
   padding: 0.8rem;
-  background: #ffffff; 
+  background: #ffffff;
   color: #555;
   border: 1px solid #ccc;
   border-radius: 8px;
@@ -327,30 +379,19 @@ form input:focus {
   gap: 10px;
 }
 
-.btn-google:hover {
+.btn-google:hover:not(:disabled) {
   background: #f4f4f4;
   border-color: #aaa;
 }
 
+.btn-google:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .btn-google img {
-    width: 20px;
-    height: 20px;
-}
-
-
-.forgot-password {
-  text-align: right;
-  margin: 0.5rem 0 1rem 0;
-}
-
-.forgot-password a {
-  font-size: 0.9rem;
-  color: #4caf50;
-  text-decoration: none;
-}
-
-.forgot-password a:hover {
-  text-decoration: underline;
+  width: 20px;
+  height: 20px;
 }
 
 .register {
@@ -369,7 +410,49 @@ form input:focus {
   text-decoration: underline;
 }
 
-/* --- Animasi Notifikasi (Fade In Down) --- */
+/* Loading Overlay untuk Google Login */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(22, 101, 52, 0.95);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-top: 4px solid white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.loading-text {
+  color: white;
+  font-size: 1rem;
+  font-weight: 600;
+  margin-top: 20px;
+  font-family: 'Montserrat', sans-serif;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Animasi Notifikasi */
 @keyframes fadeInDown {
   from {
     opacity: 0;
@@ -392,7 +475,7 @@ form input:focus {
   font-weight: 600;
   min-width: 260px;
   text-align: center;
-  z-index: 9999;
+  z-index: 10000;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -402,17 +485,14 @@ form input:focus {
   animation: fadeInDown 0.4s ease forwards;
 }
 
-/* Warna ketika berhasil */
 .success {
-  background-color: #16a34a; 
+  background-color: #16a34a;
 }
 
-/* Warna ketika gagal */
 .error {
-  background-color: #dc2626; 
+  background-color: #dc2626;
 }
 
-/* Tombol close */
 .close-btn {
   background: transparent;
   border: none;
@@ -433,7 +513,6 @@ input[type="password"]::-webkit-contacts-auto-fill-button {
   display: none !important;
 }
 
-/* Animasi login card saat page load */
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -442,6 +521,29 @@ input[type="password"]::-webkit-contacts-auto-fill-button {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* Responsive */
+@media (max-height: 700px) {
+  .login-container {
+    align-items: flex-start;
+    padding-top: 40px;
+  }
+}
+
+@media (max-width: 480px) {
+  .login-card {
+    padding: 1.5rem;
+    max-width: 100%;
+  }
+
+  .logo {
+    width: 60px;
+  }
+
+  h2 {
+    font-size: 1.5rem;
   }
 }
 </style>

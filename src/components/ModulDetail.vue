@@ -17,7 +17,16 @@
         <h2 class="section-title">Isi Materi Modul</h2>
         <div class="input-group">
           <label>Materi Lengkap</label>
-          <textarea v-model="userMaterial" placeholder="Tulis materi lengkap di sini..."></textarea>
+          <textarea 
+            v-model="userMaterial" 
+            placeholder="Tulis materi lengkap di sini..."
+            maxlength="3000"
+          ></textarea>
+          <small class="char-count" :class="{ 'char-warning': userMaterial.length < 20, 'char-max': userMaterial.length >= 3000 }">
+            {{ userMaterial.length }}/3000 karakter
+            <span v-if="userMaterial.length < 20"> (minimum 20)</span>
+            <span v-if="userMaterial.length >= 3000"> (maksimal tercapai)</span>
+          </small>
         </div>
         <div class="input-group">
           <label>Link Video YouTube (opsional)</label>
@@ -60,6 +69,18 @@
             <span>{{ reason }}</span>
           </label>
         </div>
+        
+        <div class="custom-reason-section">
+          <label class="custom-label">💬 Catatan Tambahan (Opsional)</label>
+          <textarea 
+            v-model="customReason" 
+            class="custom-textarea" 
+            placeholder="Tulis catatan atau alasan tambahan untuk user..."
+            maxlength="500"
+          ></textarea>
+          <small class="char-count">{{ customReason.length }}/500 karakter</small>
+        </div>
+        
         <div class="modal-buttons">
           <button class="cancel-btn" @click="showRejectModal = false">Batal</button>
           <button class="submit-btn" @click="submitRejection">Simpan</button>
@@ -94,14 +115,17 @@ export default {
     const toast = ref({ show: false, message: "", type: "", anim: "" });
     const showRejectModal = ref(false);
     const selectedReasons = ref([]);
+    const customReason = ref("");
     const isLoading = ref(false);
     const loadingMessage = ref("Memuat Materi");
 
     const rejectReasons = [
-      "❌ Judul modul tidak relevan", "❌ Deskripsi modul tidak relevan", "❌ Materi modul tidak relevan",
-      "❌ Modul yang dibuat tidak dapat diverifikasi kebenarannya", "❌ Link video yang dikirim tidak relevan",
-      "❌ Membuat modul pada Bab yang tidak relevan",
-      "⚠️ Penyebab lainnya selain judul, deskripsi, modul, materi, dan link video modul yang dibuat"
+      "❌ Judul modul tidak relevan", 
+      "❌ Deskripsi modul tidak relevan", 
+      "❌ Materi modul tidak relevan",
+      "❌ Modul yang dibuat tidak dapat diverifikasi kebenarannya", 
+      "❌ Link video yang dikirim tidak relevan",
+      "❌ Membuat modul pada Bab yang tidak relevan"
     ];
 
     onAuthStateChanged(auth, async (user) => {
@@ -114,13 +138,13 @@ export default {
       try {
         const adminDoc = await getDoc(doc(db, "admins", uid));
         isAdmin.value = adminDoc.exists() && adminDoc.data().isAdmin === true;
-      } catch { isAdmin.value = false; }
+      } catch { 
+        isAdmin.value = false; 
+      }
     };
 
     const fetchModul = async () => {
       const docRef = doc(db, "modul", modulId);
-      
-      // Real-time listener untuk modul
       onSnapshot(docRef, (docSnap) => {
         if (docSnap.exists()) {
           modul.value = docSnap.data();
@@ -132,8 +156,6 @@ export default {
 
     const fetchMaterials = async () => {
       const q = query(collection(db, "modul_progress"), where("modulId", "==", modulId));
-      
-      // Real-time listener untuk materials
       onSnapshot(q, (snapshot) => {
         allMaterials.value = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
       }, (error) => {
@@ -199,8 +221,11 @@ export default {
         const hasRequiredWord = checkRequiredWords(userMaterial.value);
         
         await addDoc(collection(db, "modul_progress"), {
-          modulId, userId: authUser.value?.uid || "anonymous", text: userMaterial.value,
-          videoLink: videoLink.value || "", date: new Date()
+          modulId, 
+          userId: authUser.value?.uid || "anonymous", 
+          text: userMaterial.value,
+          videoLink: videoLink.value || "", 
+          date: new Date()
         });
         
         await updateDoc(doc(db, "modul", modulId), { 
@@ -253,15 +278,22 @@ export default {
     };
 
     const submitRejection = async () => {
-      if (selectedReasons.value.length === 0) {
-        return showToast("⚠️ Pilih minimal satu alasan penolakan");
+      const trimmedCustom = customReason.value.trim();
+      
+      if (selectedReasons.value.length === 0 && !trimmedCustom) {
+        return showToast("⚠️ Pilih minimal satu alasan atau tulis catatan custom");
       }
 
       loadingMessage.value = "Menyimpan Catatan";
       showRejectModal.value = false;
       isLoading.value = true;
       try {
-        const rejectionNote = selectedReasons.value.join("\n");
+        const allReasons = [...selectedReasons.value];
+        if (trimmedCustom) {
+          allReasons.push(`⚠️ Catatan Admin: ${trimmedCustom}`);
+        }
+        const rejectionNote = allReasons.join("\n");
+        
         await updateDoc(doc(db, "modul", modulId), { 
           status: "rejected", 
           description: rejectionNote, 
@@ -275,6 +307,7 @@ export default {
         setTimeout(() => {
           isLoading.value = false;
           selectedReasons.value = [];
+          customReason.value = "";
           if (window.history.length > 1) {
             window.history.back();
           }
@@ -288,7 +321,6 @@ export default {
     };
 
     const goBack = () => {
-      // Cek apakah ada history sebelumnya
       if (window.history.length > 1) {
         window.history.back();
       }
@@ -313,6 +345,7 @@ export default {
       showRejectModal, 
       rejectReasons, 
       selectedReasons, 
+      customReason,
       approveModul, 
       submitRejection, 
       isLoading, 
@@ -377,25 +410,64 @@ textarea{min-height:130px;resize:vertical;}
 .video-link-box a{color:#2e6d3b;text-decoration:none;font-weight:600;word-break:break-all;}
 .video-link-box a:hover{text-decoration:underline;}
 .modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;justify-content:center;align-items:center;z-index:999;padding:20px;}
-.reject-modal{background:white;padding:clamp(20px,4vw,30px);border-radius:18px;max-width:500px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 12px 30px rgba(0,0,0,0.12);animation:fadeIn 0.4s;}
-.modal-title{font-size:clamp(1.1rem,2.5vw,1.3rem);font-weight:600;color:#2e6d3b;margin-bottom:20px;padding-left:12px;border-left:4px solid #a6d8a3;}
-.reject-options{display:flex;flex-direction:column;gap:12px;margin:20px 0;}
-.checkbox-label{display:flex;align-items:flex-start;gap:10px;padding:12px;background:#f7fbf6;border-radius:10px;cursor:pointer;transition:0.3s;}
+
+/* Modal Rejection - Optimized & Compact */
+.reject-modal{background:white;padding:clamp(18px,3vw,24px);border-radius:16px;max-width:420px;width:95%;max-height:85vh;overflow-y:auto;box-shadow:0 12px 30px rgba(0,0,0,0.12);animation:fadeIn 0.4s;}
+.modal-title{font-size:clamp(1rem,2.2vw,1.2rem);font-weight:600;color:#2e6d3b;margin-bottom:15px;padding-left:10px;border-left:3px solid #a6d8a3;}
+.reject-options{display:flex;flex-direction:column;gap:8px;margin:12px 0;}
+.checkbox-label{display:flex;align-items:flex-start;gap:8px;padding:10px;background:#f7fbf6;border-radius:8px;cursor:pointer;transition:0.3s;}
 .checkbox-label:hover{background:#e8f5e9;}
-.checkbox-label input[type="checkbox"]{width:18px;height:18px;cursor:pointer;margin-top:2px;flex-shrink:0;}
-.checkbox-label span{flex:1;font-size:clamp(0.82rem,2vw,0.92rem);color:#333;line-height:1.5;}
-.modal-buttons{display:flex;gap:15px;justify-content:flex-end;margin-top:20px;flex-wrap:wrap;}
-.cancel-btn,.submit-btn{padding:12px 25px;border:none;border-radius:12px;font-weight:600;cursor:pointer;transition:0.3s;font-size:clamp(0.85rem,2vw,0.95rem);color:white;flex:1;min-width:100px;}
+.checkbox-label input[type="checkbox"]{width:16px;height:16px;cursor:pointer;margin-top:2px;flex-shrink:0;}
+.checkbox-label span{flex:1;font-size:clamp(0.8rem,1.8vw,0.88rem);color:#333;line-height:1.4;}
+
+/* Custom Reason Section - Compact */
+.custom-reason-section{margin:12px 0;padding:12px;background:#f7fbf6;border-radius:10px;border:1px solid #e0e0e0;}
+.custom-label{display:block;font-weight:600;color:#2e6d3b;margin-bottom:6px;font-size:clamp(0.82rem,1.9vw,0.9rem);}
+.custom-textarea{width:100%;min-height:70px;padding:10px;border-radius:8px;border:1px solid #cbd5c4;font-size:clamp(0.8rem,1.8vw,0.88rem);font-family:'Poppins',sans-serif;resize:vertical;transition:0.3s;box-sizing:border-box;}
+.custom-textarea:focus{border-color:#4caf50;box-shadow:0 0 5px rgba(76,175,80,0.25);outline:none;}
+.char-count-modal{display:block;text-align:right;color:#666;font-size:clamp(0.72rem,1.6vw,0.78rem);margin-top:4px;}
+
+/* Modal Buttons - Compact */
+.modal-buttons{display:flex;gap:10px;justify-content:flex-end;margin-top:15px;flex-wrap:wrap;}
+.cancel-btn,.submit-btn{padding:10px 20px;border:none;border-radius:10px;font-weight:600;cursor:pointer;transition:0.3s;font-size:clamp(0.82rem,1.9vw,0.9rem);color:white;flex:1;min-width:90px;}
 .cancel-btn{background:#f44336;}
 .cancel-btn:hover{background:#d32f2f;transform:translateY(-2px);}
 .submit-btn{background:#4caf50;}
 .submit-btn:hover{background:#3f8f43;transform:translateY(-2px);}
+
+/* Toast Notification */
 .toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);padding:13px 25px;border-radius:14px;font-weight:600;z-index:2000;max-width:90%;text-align:center;box-shadow:0 8px 20px rgba(0,0,0,0.15);font-size:clamp(0.85rem,2vw,0.95rem);color:white;word-wrap:break-word;}
 .toast.error{background:#f44336;}
 .toast.success{background:#4caf50;}
 .toast.fade-in{animation:toastFadeIn 0.5s ease-out forwards;}
 .toast.fade-out{animation:toastFadeOut 0.5s ease-out forwards;}
 
-@media(max-width:768px){.admin-buttons{flex-direction:column;}.verify-btn,.reject-btn{min-width:100%;}.modal-buttons{flex-direction:column;}.cancel-btn,.submit-btn{width:100%;min-width:100%;}.loader{width:60px;height:60px;border-width:5px;}}
-@media(max-width:480px){.loader{width:55px;height:55px;border-width:4px;}.toast{padding:10px 16px;font-size:0.8rem;}}
+/* Character Counter with Visual Feedback */
+.char-count{display:block;text-align:right;color:#666;font-size:clamp(0.75rem,1.8vw,0.82rem);margin-top:5px;transition:color 0.3s;}
+.input-group .char-count{margin-top:5px;}
+.char-count.char-warning{color:#f44336;font-weight:600;}
+.char-count.char-max{color:#ff9800;font-weight:600;}
+
+/* Responsive Design */
+@media(max-width:768px){
+  .admin-buttons{flex-direction:column;}
+  .verify-btn,.reject-btn{min-width:100%;}
+  .loader{width:60px;height:60px;border-width:5px;}
+}
+
+@media(max-width:480px){
+  .loader{width:55px;height:55px;border-width:4px;}
+  .toast{padding:10px 16px;font-size:0.8rem;}
+  
+  /* Modal Responsive untuk Mobile */
+  .reject-modal{padding:15px;max-width:100%;width:92%;}
+  .modal-title{font-size:1rem;margin-bottom:12px;}
+  .reject-options{gap:6px;margin:10px 0;}
+  .checkbox-label{padding:8px;gap:6px;}
+  .checkbox-label span{font-size:0.8rem;}
+  .custom-reason-section{padding:10px;margin:10px 0;}
+  .custom-textarea{min-height:60px;padding:8px;}
+  .modal-buttons{flex-direction:column;gap:8px;margin-top:12px;}
+  .cancel-btn,.submit-btn{width:100%;min-width:100%;}
+}
 </style>
