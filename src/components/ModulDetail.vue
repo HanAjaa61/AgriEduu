@@ -13,89 +13,175 @@
       <h1 class="title">{{ modul.title }}</h1>
       <p class="subtitle">{{ modul.description }}</p>
 
+      <!-- CREATOR INPUT -->
       <div v-if="isCreator && modul.status === 'draft'" class="form-card">
         <h2 class="section-title">Isi Materi Modul</h2>
+
         <div class="input-group">
           <label>Materi Lengkap</label>
-          <textarea 
-            v-model="userMaterial" 
+          <textarea
+            v-model="userMaterial"
             placeholder="Tulis materi lengkap di sini..."
             maxlength="3000"
           ></textarea>
-          <small class="char-count" :class="{ 'char-warning': userMaterial.length < 20, 'char-max': userMaterial.length >= 3000 }">
+          <small
+            class="char-count"
+            :class="{
+              'char-warning': userMaterial.length < 20,
+              'char-max': userMaterial.length >= 3000
+            }"
+          >
             {{ userMaterial.length }}/3000 karakter
             <span v-if="userMaterial.length < 20"> (minimum 20)</span>
             <span v-if="userMaterial.length >= 3000"> (maksimal tercapai)</span>
           </small>
         </div>
+
         <div class="input-group">
           <label>Link Video YouTube (opsional)</label>
-          <input type="text" v-model="videoLink" placeholder="Masukkan link YouTube" />
+          <input
+            type="text"
+            v-model="videoLink"
+            placeholder="Masukkan link YouTube"
+          />
         </div>
-        <button class="save-btn" @click="saveMaterial">Simpan Materi</button>
+
+        <button class="save-btn" @click="saveMaterial">
+          Simpan Materi
+        </button>
       </div>
 
+      <!-- ADMIN PANEL -->
       <div v-if="isAdmin && modul.status === 'pending'" class="admin-section">
         <h2 class="section-title">Panel Verifikasi Admin</h2>
+
         <div v-if="creatorMaterial" class="materi-card">
           <p class="materi-text">{{ creatorMaterial.text }}</p>
-          <small v-if="creatorMaterial.videoLink" class="video-link-box">
-            Video: <a :href="creatorMaterial.videoLink" target="_blank">{{ creatorMaterial.videoLink }}</a>
-          </small>
+
+          <!-- EMBED VIDEO (ADMIN VIEW) -->
+          <div
+            v-if="creatorMaterial.videoLink && getEmbedUrl(creatorMaterial.videoLink)"
+            class="video-embed"
+          >
+            <iframe
+              :src="getEmbedUrl(creatorMaterial.videoLink)"
+              frameborder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowfullscreen
+            ></iframe>
+          </div>
         </div>
+
         <div class="admin-buttons">
-          <button class="verify-btn" @click="approveModul">✅ Verifikasi Modul</button>
-          <button class="reject-btn" @click="showRejectModal = true">❌ Tolak Modul</button>
+          <button class="verify-btn" @click="approveModul">
+            ✅ Verifikasi Modul
+          </button>
+          <button class="reject-btn" @click="showRejectModal = true">
+            ❌ Tolak Modul
+          </button>
         </div>
       </div>
 
-      <div v-if="allMaterials.length && (modul.status === 'approved' || !modul.status)" class="materi-wrapper">
+      <!-- APPROVED MATERIAL -->
+      <div
+        v-if="allMaterials.length && (modul.status === 'approved' || !modul.status)"
+        class="materi-wrapper"
+      >
         <h2 class="section-title">Materi Lengkap</h2>
-        <div v-for="(m, i) in allMaterials" :key="i" class="materi-card">
+
+        <div
+          v-for="(m, i) in allMaterials"
+          :key="i"
+          class="materi-card"
+        >
           <p class="materi-text">{{ m.text }}</p>
-          <small v-if="m.videoLink" class="video-link-box">
-            Video: <a :href="m.videoLink" target="_blank">{{ m.videoLink }}</a>
-          </small>
+
+          <!-- EMBED VIDEO (USER VIEW) -->
+          <div
+            v-if="m.videoLink && getEmbedUrl(m.videoLink)"
+            class="video-embed"
+          >
+            <iframe
+              :src="getEmbedUrl(m.videoLink)"
+              frameborder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowfullscreen
+            ></iframe>
+          </div>
         </div>
       </div>
     </div>
 
-    <div v-if="showRejectModal" class="modal-overlay" @click.self="showRejectModal = false">
+    <!-- MODAL REJECT -->
+    <div
+      v-if="showRejectModal"
+      class="modal-overlay"
+      @click.self="showRejectModal = false"
+    >
       <div class="reject-modal">
         <h2 class="modal-title">Pilih Alasan Penolakan</h2>
+
         <div class="reject-options">
-          <label v-for="(reason, idx) in rejectReasons" :key="idx" class="checkbox-label">
-            <input type="checkbox" :value="reason" v-model="selectedReasons" />
+          <label
+            v-for="(reason, idx) in rejectReasons"
+            :key="idx"
+            class="checkbox-label"
+          >
+            <input
+              type="checkbox"
+              :value="reason"
+              v-model="selectedReasons"
+            />
             <span>{{ reason }}</span>
           </label>
         </div>
-        
+
         <div class="custom-reason-section">
           <label class="custom-label">💬 Catatan Tambahan (Opsional)</label>
-          <textarea 
-            v-model="customReason" 
-            class="custom-textarea" 
+          <textarea
+            v-model="customReason"
+            class="custom-textarea"
             placeholder="Tulis catatan atau alasan tambahan untuk user..."
             maxlength="500"
           ></textarea>
-          <small class="char-count">{{ customReason.length }}/500 karakter</small>
+          <small class="char-count">
+            {{ customReason.length }}/500 karakter
+          </small>
         </div>
-        
+
         <div class="modal-buttons">
-          <button class="cancel-btn" @click="showRejectModal = false">Batal</button>
-          <button class="submit-btn" @click="submitRejection">Simpan</button>
+          <button class="cancel-btn" @click="showRejectModal = false">
+            Batal
+          </button>
+          <button class="submit-btn" @click="submitRejection">
+            Simpan
+          </button>
         </div>
       </div>
     </div>
 
-    <div v-if="toast.show" :class="['toast', toast.type, toast.anim]">{{ toast.message }}</div>
+    <div
+      v-if="toast.show"
+      :class="['toast', toast.type, toast.anim]"
+    >
+      {{ toast.message }}
+    </div>
   </div>
 </template>
 
 <script>
 import { ref, onMounted, computed } from "vue";
 import { db, auth } from "@/firebase.js";
-import { doc, getDoc, collection, addDoc, query, where, updateDoc, onSnapshot } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  collection,
+  addDoc,
+  query,
+  where,
+  updateDoc,
+  onSnapshot
+} from "firebase/firestore";
 import { useRoute } from "vue-router";
 import { forbiddenWords } from "@/utils/ForbiddenWords.js";
 import { requiredWords } from "@/utils/requiredWords.js";
@@ -106,26 +192,31 @@ export default {
   setup() {
     const route = useRoute();
     const modulId = route.params.id;
+
     const modul = ref({});
     const authUser = ref(null);
     const isAdmin = ref(false);
+
     const userMaterial = ref("");
     const videoLink = ref("");
+
     const allMaterials = ref([]);
     const toast = ref({ show: false, message: "", type: "", anim: "" });
+
     const showRejectModal = ref(false);
     const selectedReasons = ref([]);
     const customReason = ref("");
+
     const isLoading = ref(false);
     const loadingMessage = ref("Memuat Materi");
 
     const rejectReasons = [
-      "❌ Judul modul tidak relevan", 
-      "❌ Deskripsi modul tidak relevan", 
+      "❌ Judul modul tidak relevan",
+      "❌ Deskripsi modul tidak relevan",
       "❌ Materi modul tidak relevan",
-      "❌ Modul yang dibuat tidak dapat diverifikasi kebenarannya", 
-      "❌ Link video yang dikirim tidak relevan",
-      "❌ Membuat modul pada Bab yang tidak relevan"
+      "❌ Modul tidak dapat diverifikasi kebenarannya",
+      "❌ Link video tidak relevan",
+      "❌ Modul dibuat pada bab yang tidak relevan"
     ];
 
     onAuthStateChanged(auth, async (user) => {
@@ -135,221 +226,193 @@ export default {
     });
 
     const checkAdminStatus = async (uid) => {
-      try {
-        const adminDoc = await getDoc(doc(db, "admins", uid));
-        isAdmin.value = adminDoc.exists() && adminDoc.data().isAdmin === true;
-      } catch { 
-        isAdmin.value = false; 
-      }
+      const adminDoc = await getDoc(doc(db, "admins", uid));
+      isAdmin.value = adminDoc.exists() && adminDoc.data().isAdmin === true;
     };
 
     const fetchModul = async () => {
       const docRef = doc(db, "modul", modulId);
-      onSnapshot(docRef, (docSnap) => {
-        if (docSnap.exists()) {
-          modul.value = docSnap.data();
-        }
-      }, (error) => {
-        console.error("Error fetching modul:", error);
+      onSnapshot(docRef, (snap) => {
+        if (snap.exists()) modul.value = snap.data();
       });
     };
 
     const fetchMaterials = async () => {
-      const q = query(collection(db, "modul_progress"), where("modulId", "==", modulId));
-      onSnapshot(q, (snapshot) => {
-        allMaterials.value = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-      }, (error) => {
-        console.error("Error fetching materials:", error);
+      const q = query(
+        collection(db, "modul_progress"),
+        where("modulId", "==", modulId)
+      );
+      onSnapshot(q, (snap) => {
+        allMaterials.value = snap.docs.map((d) => ({
+          id: d.id,
+          ...d.data()
+        }));
       });
     };
 
-    const isCreator = computed(() => authUser.value && modul.value.createdBy === authUser.value.uid);
-    const creatorMaterial = computed(() => {
-      if (!modul.value.createdBy) return null;
-      return allMaterials.value.find((m) => m.userId === modul.value.createdBy);
-    });
+    const isCreator = computed(
+      () => authUser.value && modul.value.createdBy === authUser.value.uid
+    );
+
+    const creatorMaterial = computed(() =>
+      allMaterials.value.find(
+        (m) => m.userId === modul.value.createdBy
+      )
+    );
+
+    /* ================= YOUTUBE EMBED ================= */
+
+    const getYouTubeId = (url) => {
+      if (!url) return null;
+      const regex =
+        /(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+      const match = url.match(regex);
+      return match ? match[1] : null;
+    };
+
+    const getEmbedUrl = (link) => {
+      const id = getYouTubeId(link);
+      return id ? `https://www.youtube.com/embed/${id}` : null;
+    };
+
+    /* ================================================= */
 
     const normalizeText = (text) => {
       if (!text) return "";
-      let normalized = text.toLowerCase();
-      const leetMap = { "0": "o", "1": "i", "2": "z", "3": "e", "4": "a", "5": "s", "6": "g", "7": "t", "8": "b", "9": "g" };
-      normalized = normalized.split("").map(c => leetMap[c] || c).join("");
-      return normalized.replace(/[^a-z]/g, "");
+      const map = { "0": "o", "1": "i", "3": "e", "4": "a", "5": "s", "7": "t" };
+      return text
+        .toLowerCase()
+        .split("")
+        .map((c) => map[c] || c)
+        .join("")
+        .replace(/[^a-z]/g, "");
     };
 
     const checkForbiddenWords = (text) => {
-      const normalized = normalizeText(text);
-      return [...new Set(forbiddenWords.filter((bad) => normalized.includes(bad.toLowerCase())))];
+      const n = normalizeText(text);
+      return forbiddenWords.filter((w) => n.includes(w));
     };
 
     const checkRequiredWords = (text) => {
-      const normalized = normalizeText(text);
-      return requiredWords.some((word) => normalized.includes(word.toLowerCase().replace(/\s+/g, "")));
-    };
-
-    const showToast = (message, type = "error", duration = 3000) => {
-      toast.value = { show: true, message, type, anim: "fade-in" };
-      setTimeout(() => (toast.value.anim = "fade-out"), duration - 500);
-      setTimeout(() => (toast.value.show = false), duration);
+      const n = normalizeText(text);
+      return requiredWords.some((w) =>
+        n.includes(w.replace(/\s+/g, ""))
+      );
     };
 
     const isValidYouTube = (link) => {
       if (!link) return true;
-      const regex = /^(https?:\/\/)?(www\.youtube\.com|youtu\.?be)\/.+$/;
-      return regex.test(link);
+      return /^(https?:\/\/)?(www\.youtube\.com|youtu\.be)\//.test(link);
+    };
+
+    const showToast = (msg, type = "error", dur = 3000) => {
+      toast.value = { show: true, message: msg, type, anim: "fade-in" };
+      setTimeout(() => (toast.value.anim = "fade-out"), dur - 500);
+      setTimeout(() => (toast.value.show = false), dur);
     };
 
     const saveMaterial = async () => {
-      if (userMaterial.value.length < 20 || userMaterial.value.length > 3000) {
-        return showToast("⚠️ Panjang Materi harus 20-3000 karakter");
-      }
+      if (userMaterial.value.length < 20)
+        return showToast("⚠️ Materi minimal 20 karakter");
 
-      const text = userMaterial.value + " " + videoLink.value;
-      const detected = checkForbiddenWords(text);
-      if (detected.length) {
-        return showToast("⚠️ Terdeteksi kata terlarang: " + detected.join(", "));
-      }
-
-      if (videoLink.value && !isValidYouTube(videoLink.value)) {
+      if (videoLink.value && !isValidYouTube(videoLink.value))
         return showToast("⚠️ Link YouTube tidak valid");
-      }
 
-      loadingMessage.value = "Menyimpan Materi";
+      const detected = checkForbiddenWords(
+        userMaterial.value + " " + videoLink.value
+      );
+      if (detected.length)
+        return showToast("⚠️ Kata terlarang terdeteksi");
+
       isLoading.value = true;
+      loadingMessage.value = "Menyimpan Materi";
 
       try {
-        const hasRequiredWord = checkRequiredWords(userMaterial.value);
-        
+        const hasRequired = checkRequiredWords(userMaterial.value);
+
         await addDoc(collection(db, "modul_progress"), {
-          modulId, 
-          userId: authUser.value?.uid || "anonymous", 
+          modulId,
+          userId: authUser.value.uid,
           text: userMaterial.value,
-          videoLink: videoLink.value || "", 
+          videoLink: videoLink.value,
           date: new Date()
         });
-        
-        await updateDoc(doc(db, "modul", modulId), { 
-          status: "pending", 
-          needsVerification: !hasRequiredWord,
+
+        await updateDoc(doc(db, "modul", modulId), {
+          status: "pending",
+          needsVerification: !hasRequired,
           updatedAt: new Date()
         });
-        
-        showToast("✅ Materi berhasil disimpan dan menunggu verifikasi admin", "success", 2000);
-        
-        setTimeout(() => {
-          isLoading.value = false;
-          if (window.history.length > 1) {
-            window.history.back();
-          }
-        }, 2000);
-      } catch (error) {
-        console.error("Error saving material:", error);
+
+        showToast("✅ Materi berhasil disimpan", "success", 2000);
+        setTimeout(() => window.history.back(), 2000);
+      } catch {
         isLoading.value = false;
-        showToast("❌ Gagal menyimpan materi, silakan coba lagi", "error");
-        await fetchMaterials();
-        await fetchModul();
+        showToast("❌ Gagal menyimpan materi");
       }
     };
 
     const approveModul = async () => {
-      loadingMessage.value = "Memverifikasi Modul";
       isLoading.value = true;
-      try {
-        await updateDoc(doc(db, "modul", modulId), { 
-          status: "approved", 
-          needsVerification: false,
-          verifiedAt: new Date(),
-          verifiedBy: authUser.value.uid
-        });
-        
-        showToast("✅ Admin telah berhasil memverifikasi modul", "success", 2000);
-        
-        setTimeout(() => {
-          isLoading.value = false;
-          if (window.history.length > 1) {
-            window.history.back();
-          }
-        }, 2000);
-      } catch (error) {
-        console.error("Error approving modul:", error);
-        isLoading.value = false;
-        showToast("❌ Admin gagal memverifikasi modul", "error");
-      }
+      loadingMessage.value = "Memverifikasi Modul";
+
+      await updateDoc(doc(db, "modul", modulId), {
+        status: "approved",
+        verifiedBy: authUser.value.uid,
+        verifiedAt: new Date()
+      });
+
+      showToast("✅ Modul diverifikasi", "success", 2000);
+      setTimeout(() => window.history.back(), 2000);
     };
 
     const submitRejection = async () => {
-      const trimmedCustom = customReason.value.trim();
-      
-      if (selectedReasons.value.length === 0 && !trimmedCustom) {
-        return showToast("⚠️ Pilih minimal satu alasan atau tulis catatan custom");
-      }
+      if (!selectedReasons.value.length && !customReason.value.trim())
+        return showToast("⚠️ Pilih alasan atau isi catatan");
 
-      loadingMessage.value = "Menyimpan Catatan";
-      showRejectModal.value = false;
       isLoading.value = true;
-      try {
-        const allReasons = [...selectedReasons.value];
-        if (trimmedCustom) {
-          allReasons.push(`⚠️ Catatan Admin: ${trimmedCustom}`);
-        }
-        const rejectionNote = allReasons.join("\n");
-        
-        await updateDoc(doc(db, "modul", modulId), { 
-          status: "rejected", 
-          description: rejectionNote, 
-          needsVerification: false,
-          rejectedAt: new Date(),
-          rejectedBy: authUser.value.uid
-        });
-        
-        showToast("✅ Admin berhasil menolak modul", "success", 2000);
-        
-        setTimeout(() => {
-          isLoading.value = false;
-          selectedReasons.value = [];
-          customReason.value = "";
-          if (window.history.length > 1) {
-            window.history.back();
-          }
-        }, 2000);
-      } catch (error) {
-        console.error("Error rejecting modul:", error);
-        isLoading.value = false;
-        showRejectModal.value = true;
-        showToast("❌ Admin gagal menolak modul", "error");
-      }
+      showRejectModal.value = false;
+
+      await updateDoc(doc(db, "modul", modulId), {
+        status: "rejected",
+        description: [...selectedReasons.value, customReason.value]
+          .filter(Boolean)
+          .join("\n"),
+        rejectedBy: authUser.value.uid,
+        rejectedAt: new Date()
+      });
+
+      showToast("✅ Modul ditolak", "success", 2000);
+      setTimeout(() => window.history.back(), 2000);
     };
 
-    const goBack = () => {
-      if (window.history.length > 1) {
-        window.history.back();
-      }
-    };
+    const goBack = () => window.history.back();
 
-    onMounted(async () => { 
-      await fetchModul(); 
-      await fetchMaterials(); 
+    onMounted(() => {
+      fetchModul();
+      fetchMaterials();
     });
 
-    return { 
-      modul, 
-      userMaterial, 
-      videoLink, 
-      saveMaterial, 
-      allMaterials, 
-      creatorMaterial, 
-      isCreator, 
-      isAdmin, 
-      toast, 
-      goBack, 
-      showRejectModal, 
-      rejectReasons, 
-      selectedReasons, 
+    return {
+      modul,
+      userMaterial,
+      videoLink,
+      allMaterials,
+      creatorMaterial,
+      isCreator,
+      isAdmin,
+      toast,
+      saveMaterial,
+      approveModul,
+      submitRejection,
+      goBack,
+      showRejectModal,
+      rejectReasons,
+      selectedReasons,
       customReason,
-      approveModul, 
-      submitRejection, 
-      isLoading, 
-      loadingMessage 
+      isLoading,
+      loadingMessage,
+      getEmbedUrl
     };
   }
 };
@@ -447,6 +510,24 @@ textarea{min-height:130px;resize:vertical;}
 .input-group .char-count{margin-top:5px;}
 .char-count.char-warning{color:#f44336;font-weight:600;}
 .char-count.char-max{color:#ff9800;font-weight:600;}
+.video-embed {
+  position: relative;
+  width: 100%;
+  padding-bottom: 56.25%; /* 16:9 */
+  height: 0;
+  margin-top: 12px;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+}
+
+.video-embed iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
 
 /* Responsive Design */
 @media(max-width:768px){
