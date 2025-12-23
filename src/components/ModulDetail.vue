@@ -226,8 +226,12 @@ export default {
     });
 
     const checkAdminStatus = async (uid) => {
-      const adminDoc = await getDoc(doc(db, "admins", uid));
-      isAdmin.value = adminDoc.exists() && adminDoc.data().isAdmin === true;
+      try {
+        const adminDoc = await getDoc(doc(db, "admins", uid));
+        isAdmin.value = adminDoc.exists() && adminDoc.data().isAdmin === true;
+      } catch { 
+        isAdmin.value = false; 
+      }
     };
 
     const fetchModul = async () => {
@@ -275,30 +279,74 @@ export default {
       return id ? `https://www.youtube.com/embed/${id}` : null;
     };
 
-    /* ================================================= */
+    /* ================= NORMALISASI & FILTERING (KONSISTEN DENGAN MODULLIST) ================= */
 
+    // Normalisasi text: hapus karakter khusus, ubah leet speak, lowercase
     const normalizeText = (text) => {
       if (!text) return "";
-      const map = { "0": "o", "1": "i", "3": "e", "4": "a", "5": "s", "7": "t" };
-      return text
-        .toLowerCase()
-        .split("")
-        .map((c) => map[c] || c)
-        .join("")
-        .replace(/[^a-z]/g, "");
+      let normalized = text.toLowerCase();
+      
+      // Leet speak mapping yang lebih lengkap
+      const leetMap = { 
+        "0": "o", "1": "i", "2": "z", "3": "e", "4": "a", 
+        "5": "s", "6": "g", "7": "t", "8": "b", "9": "g",
+        "@": "a", "$": "s", "!": "i", "|": "i", "€": "e"
+      };
+      
+      // Replace leet speak
+      normalized = normalized.split("").map(c => leetMap[c] || c).join("");
+      
+      // Hapus semua karakter non-alfabet dan spasi
+      normalized = normalized.replace(/[^a-z\s]/g, "");
+      
+      // Hapus multiple spaces jadi single space
+      normalized = normalized.replace(/\s+/g, " ").trim();
+      
+      return normalized;
     };
 
+    // Cek kata terlarang dengan word boundary (per kata)
     const checkForbiddenWords = (text) => {
-      const n = normalizeText(text);
-      return forbiddenWords.filter((w) => n.includes(w));
+      if (!text) return [];
+      
+      const normalized = normalizeText(text);
+      const detectedWords = [];
+      
+      forbiddenWords.forEach((badWord) => {
+        const badNormalized = normalizeText(badWord);
+        
+        // Cek dengan word boundary - kata harus berdiri sendiri
+        const regex = new RegExp(`\\b${badNormalized}\\b`, 'gi');
+        
+        if (regex.test(normalized)) {
+          detectedWords.push(badWord);
+        }
+      });
+      
+      // Hapus duplikat
+      const uniqueWords = [...new Set(detectedWords)];
+      
+      // Debug log untuk development
+      if (uniqueWords.length > 0) {
+        console.log("🚫 Kata terlarang terdeteksi:", uniqueWords);
+        console.log("📝 Teks yang dinormalisasi:", normalized);
+      }
+      
+      return uniqueWords;
     };
 
     const checkRequiredWords = (text) => {
-      const n = normalizeText(text);
-      return requiredWords.some((w) =>
-        n.includes(w.replace(/\s+/g, ""))
-      );
+      if (!text) return false;
+      const normalized = normalizeText(text);
+      
+      return requiredWords.some((word) => {
+        const wordNormalized = normalizeText(word);
+        const regex = new RegExp(`\\b${wordNormalized}\\b`, 'gi');
+        return regex.test(normalized);
+      });
     };
+
+    /* ================================================= */
 
     const isValidYouTube = (link) => {
       if (!link) return true;
@@ -312,17 +360,29 @@ export default {
     };
 
     const saveMaterial = async () => {
-      if (userMaterial.value.length < 20)
+      // Validasi panjang materi
+      if (userMaterial.value.length < 20) {
         return showToast("⚠️ Materi minimal 20 karakter");
+      }
 
-      if (videoLink.value && !isValidYouTube(videoLink.value))
+      // Cek kata terlarang di materi
+      const materialDetected = checkForbiddenWords(userMaterial.value);
+      if (materialDetected.length) {
+        return showToast(`⚠️ Materi terdeteksi kata terlarang: ${materialDetected.join(", ")}`);
+      }
+
+      // Validasi video link
+      if (videoLink.value && !isValidYouTube(videoLink.value)) {
         return showToast("⚠️ Link YouTube tidak valid");
+      }
 
-      const detected = checkForbiddenWords(
-        userMaterial.value + " " + videoLink.value
-      );
-      if (detected.length)
-        return showToast("⚠️ Kata terlarang terdeteksi");
+      // Cek kata terlarang di video link
+      if (videoLink.value) {
+        const videoDetected = checkForbiddenWords(videoLink.value);
+        if (videoDetected.length) {
+          return showToast(`⚠️ Link video terdeteksi kata terlarang: ${videoDetected.join(", ")}`);
+        }
+      }
 
       isLoading.value = true;
       loadingMessage.value = "Menyimpan Materi";
@@ -333,8 +393,8 @@ export default {
         await addDoc(collection(db, "modul_progress"), {
           modulId,
           userId: authUser.value.uid,
-          text: userMaterial.value,
-          videoLink: videoLink.value,
+          text: userMaterial.value.trim(),
+          videoLink: videoLink.value.trim(),
           date: new Date()
         });
 
@@ -346,7 +406,8 @@ export default {
 
         showToast("✅ Materi berhasil disimpan", "success", 2000);
         setTimeout(() => window.history.back(), 2000);
-      } catch {
+      } catch (err) {
+        console.error("Error saving material:", err);
         isLoading.value = false;
         showToast("❌ Gagal menyimpan materi");
       }
@@ -356,34 +417,55 @@ export default {
       isLoading.value = true;
       loadingMessage.value = "Memverifikasi Modul";
 
-      await updateDoc(doc(db, "modul", modulId), {
-        status: "approved",
-        verifiedBy: authUser.value.uid,
-        verifiedAt: new Date()
-      });
+      try {
+        await updateDoc(doc(db, "modul", modulId), {
+          status: "approved",
+          verifiedBy: authUser.value.uid,
+          verifiedAt: new Date()
+        });
 
-      showToast("✅ Modul diverifikasi", "success", 2000);
-      setTimeout(() => window.history.back(), 2000);
+        showToast("✅ Modul diverifikasi", "success", 2000);
+        setTimeout(() => window.history.back(), 2000);
+      } catch (err) {
+        console.error("Error approving modul:", err);
+        isLoading.value = false;
+        showToast("❌ Gagal memverifikasi modul");
+      }
     };
 
     const submitRejection = async () => {
-      if (!selectedReasons.value.length && !customReason.value.trim())
+      if (!selectedReasons.value.length && !customReason.value.trim()) {
         return showToast("⚠️ Pilih alasan atau isi catatan");
+      }
+
+      // Cek kata terlarang di custom reason
+      if (customReason.value.trim()) {
+        const customDetected = checkForbiddenWords(customReason.value);
+        if (customDetected.length) {
+          return showToast(`⚠️ Catatan terdeteksi kata terlarang: ${customDetected.join(", ")}`);
+        }
+      }
 
       isLoading.value = true;
       showRejectModal.value = false;
 
-      await updateDoc(doc(db, "modul", modulId), {
-        status: "rejected",
-        description: [...selectedReasons.value, customReason.value]
-          .filter(Boolean)
-          .join("\n"),
-        rejectedBy: authUser.value.uid,
-        rejectedAt: new Date()
-      });
+      try {
+        await updateDoc(doc(db, "modul", modulId), {
+          status: "rejected",
+          description: [...selectedReasons.value, customReason.value.trim()]
+            .filter(Boolean)
+            .join("\n"),
+          rejectedBy: authUser.value.uid,
+          rejectedAt: new Date()
+        });
 
-      showToast("✅ Modul ditolak", "success", 2000);
-      setTimeout(() => window.history.back(), 2000);
+        showToast("✅ Modul ditolak", "success", 2000);
+        setTimeout(() => window.history.back(), 2000);
+      } catch (err) {
+        console.error("Error rejecting modul:", err);
+        isLoading.value = false;
+        showToast("❌ Gagal menolak modul");
+      }
     };
 
     const goBack = () => window.history.back();
