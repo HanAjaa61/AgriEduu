@@ -9,7 +9,7 @@
           Kami menyediakan sumber daya pendidikan yang lengkap 
           di mana para petani, pelajar, dan siapa pun yang tertarik dapat belajar dan berbagi pengetahuan untuk memajukan pertanian modern.
         </p>
-        <div class="button-container">
+        <div class="button-container" v-if="!isLoggedIn">
           <router-link to="/login" class="btn btn-secondary">Login</router-link>
         </div>
         <div class="dots-container top-dots">
@@ -29,6 +29,20 @@
     </div>
   </div>
 </template>
+
+<script setup>
+import { ref, onMounted } from "vue";
+import { auth } from "@/firebase";
+
+const isLoggedIn = ref(false);
+
+onMounted(() => {
+  // Cek status login saat component dimount
+  auth.onAuthStateChanged((user) => {
+    isLoggedIn.value = !!user;
+  });
+});
+</script>
 
 <style scoped>
 /* Main container for the landing page */

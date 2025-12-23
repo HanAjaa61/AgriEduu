@@ -27,7 +27,16 @@
 
           <div class="form-group">
             <label for="email">Email</label>
-            <input type="email" id="email" v-model="email" placeholder="Masukkan email" required />
+            <input 
+              type="email" 
+              id="email" 
+              v-model="email" 
+              placeholder="Masukkan email" 
+              required 
+              pattern="[a-zA-Z0-9._%+-]+@gmail\.com$"
+              title="Email harus menggunakan @gmail.com"
+            />
+            <p class="input-hint">Email harus menggunakan domain @gmail.com</p>
           </div>
 
           <div class="form-group password-wrapper">
@@ -41,6 +50,9 @@
             />
             <span class="toggle-password" @click="showPassword = !showPassword">
             </span>
+            <p class="input-hint password-hint">
+              Password minimal 8 karakter, harus mengandung huruf besar, huruf kecil, angka, dan karakter khusus
+            </p>
           </div>
 
           <div class="form-group password-wrapper">
@@ -76,8 +88,8 @@
 
 <script setup>
 import { ref, computed } from 'vue';
-import { auth } from '@/firebase'; // Ambil auth dari firebase.js
-import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth"; // Firebase register
+import { auth } from '@/firebase';
+import { createUserWithEmailAndPassword, updateProfile, signOut } from "firebase/auth";
 
 // Form state
 const username = ref('');
@@ -119,8 +131,14 @@ const passwordMismatch = computed(() => {
 // 🚀 REGISTER VIA FIREBASE AUTH
 // =========================================
 const handleRegister = async () => {
+  // Validasi email @gmail.com
+  if (!email.value.endsWith('@gmail.com')) {
+    showNotification('❌ Email harus menggunakan @gmail.com!', 'error');
+    return;
+  }
+
   if (!isPasswordStrong.value) {
-    showNotification('❌ Password terlalu lemah!', 'error');
+    showNotification('❌ Password tidak memenuhi kriteria keamanan!', 'error');
     return;
   }
 
@@ -139,12 +157,19 @@ const handleRegister = async () => {
 
     const user = userCredential.user;
 
-    // Update profile → simpan username
-    await updateProfile(user, { displayName: username.value });
+    // Update profile → simpan username saja, TIDAK menyimpan photoURL
+    await updateProfile(user, { 
+      displayName: username.value
+      // photoURL tidak diset disini
+    });
 
-    showNotification('✅ Registrasi berhasil! Anda dapat login sekarang.', 'success');
+    // PENTING: Logout user setelah registrasi berhasil
+    // Agar user tidak langsung ter-authenticate
+    await signOut(auth);
 
-    // Redirect setelah 1.5 detik
+    showNotification('✅ Registrasi berhasil! Silakan login untuk melanjutkan.', 'success');
+
+    // Redirect ke login setelah 1.5 detik
     setTimeout(() => {
       window.location.href = "/login";
     }, 1500);
@@ -295,6 +320,27 @@ const handleRegister = async () => {
   outline: none;
 }
 
+/* Input hint styling */
+.input-hint {
+  font-size: 0.85rem;
+  color: #666;
+  margin-top: 0.4rem;
+  line-height: 1.4;
+}
+
+.password-hint {
+  color: #555;
+  font-weight: 500;
+}
+
+/* Error message */
+.error-message {
+  font-size: 0.85rem;
+  color: #dc2626;
+  margin-top: 0.4rem;
+  font-weight: 600;
+}
+
 /* BUTTON */
 .register-btn {
   margin-top: 0.5rem;
@@ -328,8 +374,8 @@ const handleRegister = async () => {
 .toast {
   position: fixed;
   top: 100px;
-  left: 50%;             /* tengah horizontal */
-  transform: translate(-50%, -20px); /* center + slide dari atas */
+  left: 50%;
+  transform: translate(-50%, -20px);
   padding: 1rem 1.5rem;
   border-radius: 12px;
   color: #fff;
@@ -361,14 +407,15 @@ const handleRegister = async () => {
 }
 
 @media (max-width: 700px) { 
-  .auth-card { padding: 2rem 1.5rem; } /* Force vertical layout */ 
+  .auth-card { padding: 2rem 1.5rem; }
   .card-content { display: flex; flex-direction: column !important; align-items: center; text-align: center; gap: 2rem; } 
   .card-left { width: 100%; padding-top: 0; } 
   .auth-form { width: 100%; } 
   .title { font-size: 1.6rem; } 
   .subtitle { font-size: 1rem; } 
   .form-group label { text-align: left; } 
-  .register-btn { margin-top: 1rem; width: 40%; margin-left: 100px; } }
+  .register-btn { margin-top: 1rem; width: 40%; margin-left: 100px; } 
+}
 
 /* Animasi fade in / out */
 @keyframes fadeInToast {
@@ -383,5 +430,13 @@ const handleRegister = async () => {
 /* Mobile tetap responsif */
 @media (max-width: 700px) {
   .toast { width: 90%; left: 50%; transform: translate(-50%, -20px); }
+}
+
+/* Fade transition untuk error message */
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.3s;
+}
+.fade-enter-from, .fade-leave-to {
+  opacity: 0;
 }
 </style>

@@ -140,6 +140,10 @@ export default {
 
         const user = userCredential.user;
 
+        // Set profile pic dari Firebase user photoURL atau default
+        const profilePic = user.photoURL || "/avatars/default.png";
+        this.profileStore.setProfilePic(profilePic);
+
         this.showNotification(
           "✅ Login berhasil! Selamat datang, " +
             (user.displayName || "User"),
@@ -208,6 +212,10 @@ export default {
             { merge: true }
           );
         }
+
+        // Set profile pic ke store
+        const profilePic = user.photoURL || "/avatars/default.png";
+        this.profileStore.setProfilePic(profilePic);
 
         this.showNotification(
           "✅ Login berhasil dengan Google! Selamat datang, " +

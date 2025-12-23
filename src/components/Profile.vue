@@ -33,7 +33,23 @@
         </div>
 
         <div class="form-actions">
-          <button type="submit" class="btn-save">Simpan</button>
+          <button 
+            type="submit" 
+            class="btn-save"
+            :disabled="!isLoggedIn"
+            :class="{ 'btn-disabled': !isLoggedIn }"
+          >
+            Simpan
+          </button>
+          <button 
+            type="button" 
+            class="btn-logout" 
+            @click="handleLogout"
+            :disabled="!isLoggedIn"
+            :class="{ 'btn-disabled': !isLoggedIn }"
+          >
+            Logout
+          </button>
         </div>
       </form>
 
@@ -70,10 +86,12 @@
 
 <script setup>
 import { ref, onMounted } from "vue";
+import { useRouter } from "vue-router";
 import { auth } from "@/firebase.js";
-import { updateProfile } from "firebase/auth";
+import { updateProfile, signOut } from "firebase/auth";
 import { useProfileStore } from "@/stores/profile";
 
+const router = useRouter();
 const profileStore = useProfileStore();
 
 const username = ref("");
@@ -82,6 +100,7 @@ const showToast = ref(false);
 const toastMessage = ref("");
 const toastType = ref("success");
 const showAvatarPopup = ref(false);
+const isLoggedIn = ref(false);
 
 // =====================
 // Semua avatar pakai folder public/avatars
@@ -142,12 +161,34 @@ const saveProfile = async () => {
 };
 
 // =====================
+// Logout
+// =====================
+const handleLogout = async () => {
+  try {
+    await signOut(auth);
+    profileStore.setProfilePic("/avatars/default.png");
+    showNotification("✅ Berhasil logout!", "success");
+    
+    setTimeout(() => {
+      router.push("/");
+    }, 1000);
+  } catch (err) {
+    showNotification(`❌ Error: ${err.message}`, "error");
+  }
+};
+
+// =====================
 // Load user info saat mount
 // =====================
 onMounted(() => {
   const user = auth.currentUser;
-  if (!user) return;
+  
+  if (!user) {
+    isLoggedIn.value = false;
+    return;
+  }
 
+  isLoggedIn.value = true;
   username.value = user.displayName || "";
   email.value = user.email || "";
 
@@ -286,7 +327,8 @@ input:focus {
 }
 
 .btn-save,
-.btn-cancel {
+.btn-cancel,
+.btn-logout {
   color: #fff;
   border: none;
   padding: 0.9rem 1.5rem;
@@ -302,7 +344,7 @@ input:focus {
   background: #4caf50;
 }
 
-.btn-save:hover {
+.btn-save:hover:not(:disabled) {
   background: #14532d;
   transform: translateY(-2px);
   box-shadow: 0 6px 15px rgba(22, 101, 52, 0.3);
@@ -315,6 +357,28 @@ input:focus {
 .btn-cancel:hover {
   background: #922b21;
   transform: translateY(-2px);
+}
+
+.btn-logout {
+  background: #dc2626;
+}
+
+.btn-logout:hover:not(:disabled) {
+  background: #b91c1c;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(220, 38, 38, 0.3);
+}
+
+.btn-disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.btn-disabled:hover {
+  background: #9ca3af;
+  transform: none;
+  box-shadow: none;
 }
 
 .center-avatar {
@@ -427,7 +491,8 @@ input:focus {
   }
 
   .btn-save,
-  .btn-cancel {
+  .btn-cancel,
+  .btn-logout {
     width: 100%;
   }
 }
