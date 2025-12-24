@@ -608,9 +608,9 @@ export default {
         if (a === 0) {
           suggestions.push("⚠️ Data kelembapan tidak tersedia. Pantau kondisi tanah secara manual.");
         } else if (a < i) {
-          suggestions.push(`💨 Kelembapan rendah (~${this.round2(i - a)}% di bawah ideal). Tingkatkan penyiraman atau gunakan mulsa.`);
+          suggestions.push(`⚠️ Kelembapan rendah (~${this.round2(i - a)}% di bawah ideal). Tingkatkan penyiraman atau gunakan mulsa.`);
         } else {
-          suggestions.push(`💨 Kelembapan tinggi (~${this.round2(a - i)}% di atas ideal). Perbaiki drainase dan sirkulasi udara.`);
+          suggestions.push(`⚠️ Kelembapan tinggi (~${this.round2(a - i)}% di atas ideal). Perbaiki drainase dan sirkulasi udara.`);
         }
       }
       
@@ -929,7 +929,7 @@ export default {
           toleransi.kelembapan
         );
         
-        console.log('\n💨 Evaluasi Kelembapan:');
+        console.log('\n⚠️ Evaluasi Kelembapan:');
         console.log('  Aktual:', kelembapan_obj.actual, '%');
         console.log('  Ideal:', kelembapan_obj.ideal, '%');
         console.log('  Toleransi:', kelembapan_obj.toleransi, '%');
