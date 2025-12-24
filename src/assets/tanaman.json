@@ -1,0 +1,344 @@
+{
+  "Padi": {
+    "kategori": "Pertanian & Perkebunan",
+    "curah_hujan": 115,
+    "suhu": 27,
+    "kelembapan": 80,
+    "toleransi": {
+      "curah_hujan": 25,
+      "suhu": 2,
+      "kelembapan": 5
+    },
+    "jenis_tanah": [
+      "Alluvial/Tanah Endapan Sungai",
+      "Tanah Lempung",
+      "Latosol/Tanah Merah",
+      "Grumusol/Tanah Liat Berat"
+    ]
+  },
+  "Jagung": {
+    "kategori": "Pertanian & Perkebunan",
+    "curah_hujan": 110,
+    "suhu": 26,
+    "kelembapan": 75,
+    "toleransi": {
+      "curah_hujan": 20,
+      "suhu": 2,
+      "kelembapan": 5
+    },
+    "jenis_tanah": [
+      "Sandy Loam/Tanah Liat Berpasir",
+      "Tanah Lempung",
+      "Alluvial/Tanah Endapan Sungai",
+      "Latosol/Tanah Merah",
+      "Regosol/Tanah Pasir",
+      "Andosol/Tanah Hitam Gunung"
+    ]
+  },
+  "Kedelai": {
+    "kategori": "Pertanian & Perkebunan",
+    "curah_hujan": 100,
+    "suhu": 26,
+    "kelembapan": 75,
+    "toleransi": {
+      "curah_hujan": 20,
+      "suhu": 2,
+      "kelembapan": 5
+    },
+    "jenis_tanah": [
+      "Sandy Loam/Tanah Liat Berpasir",
+      "Tanah Lempung",
+      "Alluvial/Tanah Endapan Sungai",
+      "Andosol/Tanah Hitam Gunung"
+    ]
+  },
+  "Kentang": {
+    "kategori": "Pertanian & Perkebunan",
+    "curah_hujan": 90,
+    "suhu": 20,
+    "kelembapan": 80,
+    "toleransi": {
+      "curah_hujan": 15,
+      "suhu": 2,
+      "kelembapan": 5
+    },
+    "jenis_tanah": [
+      "Andosol/Tanah Hitam Gunung",
+      "Sandy Loam/Tanah Liat Berpasir",
+      "Loam/Humus",
+      "Latosol/Tanah Merah",
+      "Podsolik Merah Kuning",
+      "Regosol/Tanah Pasir"
+    ]
+  },
+  "Pepaya": {
+    "kategori": "Buah-buahan",
+    "curah_hujan": 125,
+    "suhu": 26,
+    "kelembapan": 80,
+    "toleransi": {
+      "curah_hujan": 25,
+      "suhu": 2,
+      "kelembapan": 5
+    },
+    "jenis_tanah": [
+      "Alluvial/Tanah Endapan Sungai",
+      "Latosol/Tanah Merah",
+      "Loam/Humus",
+      "Andosol/Tanah Hitam Gunung"
+    ]
+  },
+  "Mangga": {
+    "kategori": "Buah-buahan",
+    "curah_hujan": 120,
+    "suhu": 26,
+    "kelembapan": 75,
+    "toleransi": {
+      "curah_hujan": 30,
+      "suhu": 3,
+      "kelembapan": 5
+    },
+    "jenis_tanah": [
+      "Alluvial/Tanah Endapan Sungai",
+      "Latosol/Tanah Merah",
+      "Loam/Humus",
+      "Andosol/Tanah Hitam Gunung"
+    ]
+  },
+  "Jeruk": {
+    "kategori": "Buah-buahan",
+    "curah_hujan": 115,
+    "suhu": 25,
+    "kelembapan": 75,
+    "toleransi": {
+      "curah_hujan": 25,
+      "suhu": 3,
+      "kelembapan": 5
+    },
+    "jenis_tanah": [
+      "Loam/Humus",
+      "Alluvial/Tanah Endapan Sungai",
+      "Latosol/Tanah Merah",
+      "Andosol/Tanah Hitam Gunung"
+    ]
+  },
+  "Apel": {
+    "kategori": "Buah-buahan",
+    "curah_hujan": 95,
+    "suhu": 20,
+    "kelembapan": 75,
+    "toleransi": {
+      "curah_hujan": 20,
+      "suhu": 3,
+      "kelembapan": 5
+    },
+    "jenis_tanah": [
+      "Loam/Humus",
+      "Andosol/Tanah Hitam Gunung",
+      "Latosol/Tanah Merah"
+    ]
+  },
+  "Pisang": {
+    "kategori": "Buah-buahan",
+    "curah_hujan": 150,
+    "suhu": 27,
+    "kelembapan": 85,
+    "toleransi": {
+      "curah_hujan": 30,
+      "suhu": 2,
+      "kelembapan": 5
+    },
+    "jenis_tanah": [
+      "Alluvial/Tanah Endapan Sungai",
+      "Loam/Humus",
+      "Latosol/Tanah Merah",
+      "Andosol/Tanah Hitam Gunung"
+    ]
+  },
+  "Durian": {
+    "kategori": "Buah-buahan",
+    "curah_hujan": 140,
+    "suhu": 26,
+    "kelembapan": 85,
+    "toleransi": {
+      "curah_hujan": 30,
+      "suhu": 2,
+      "kelembapan": 5
+    },
+    "jenis_tanah": [
+      "Loam/Humus",
+      "Latosol/Tanah Merah",
+      "Andosol/Tanah Hitam Gunung"
+    ]
+  },
+  "Cabai": {
+    "kategori": "Pertanian & Perkebunan",
+    "curah_hujan": 100,
+    "suhu": 25,
+    "kelembapan": 75,
+    "toleransi": {
+      "curah_hujan": 20,
+      "suhu": 2,
+      "kelembapan": 5
+    },
+    "jenis_tanah": [
+      "Sandy Loam/Tanah Liat Berpasir",
+      "Alluvial/Tanah Endapan Sungai",
+      "Andosol/Tanah Hitam Gunung",
+      "Loam/Humus"
+    ]
+  },
+  "Sawi": {
+    "kategori": "Pertanian & Perkebunan",
+    "curah_hujan": 90,
+    "suhu": 20,
+    "kelembapan": 80,
+    "toleransi": {
+      "curah_hujan": 15,
+      "suhu": 2,
+      "kelembapan": 5
+    },
+    "jenis_tanah": [
+      "Sandy Loam/Tanah Liat Berpasir",
+      "Alluvial/Tanah Endapan Sungai",
+      "Loam/Humus",
+      "Latosol/Tanah Merah"
+    ]
+  },
+  "Bayam": {
+    "kategori": "Pertanian & Perkebunan",
+    "curah_hujan": 95,
+    "suhu": 23,
+    "kelembapan": 80,
+    "toleransi": {
+      "curah_hujan": 15,
+      "suhu": 2,
+      "kelembapan": 5
+    },
+    "jenis_tanah": [
+      "Alluvial/Tanah Endapan Sungai",
+      "Loam/Humus",
+      "Sandy Loam/Tanah Liat Berpasir",
+      "Andosol/Tanah Hitam Gunung"
+    ]
+  },
+  "Kangkung": {
+    "kategori": "Pertanian & Perkebunan",
+    "curah_hujan": 130,
+    "suhu": 26,
+    "kelembapan": 85,
+    "toleransi": {
+      "curah_hujan": 25,
+      "suhu": 2,
+      "kelembapan": 5
+    },
+    "jenis_tanah": [
+      "Alluvial/Tanah Endapan Sungai",
+      "Loam/Humus",
+      "Sandy Loam/Tanah Liat Berpasir",
+      "Latosol/Tanah Merah",
+      "Gambut"
+    ]
+  },
+  "Kopi": {
+    "kategori": "Pertanian & Perkebunan",
+    "curah_hujan": 120,
+    "suhu": 23,
+    "kelembapan": 85,
+    "toleransi": {
+      "curah_hujan": 25,
+      "suhu": 2,
+      "kelembapan": 5
+    },
+    "jenis_tanah": [
+      "Andosol/Tanah Hitam Gunung",
+      "Latosol/Tanah Merah",
+      "Grumusol/Tanah Liat Berat",
+      "Loam/Humus"
+    ]
+  },
+  "Teh": {
+    "kategori": "Pertanian & Perkebunan",
+    "curah_hujan": 140,
+    "suhu": 20,
+    "kelembapan": 85,
+    "toleransi": {
+      "curah_hujan": 30,
+      "suhu": 2,
+      "kelembapan": 5
+    },
+    "jenis_tanah": [
+      "Andosol/Tanah Hitam Gunung",
+      "Latosol/Tanah Merah",
+      "Podsolik Merah Kuning"
+    ]
+  },
+  "Pohon Karet": {
+    "kategori": "Pertanian & Perkebunan",
+    "curah_hujan": 135,
+    "suhu": 27,
+    "kelembapan": 85,
+    "toleransi": {
+      "curah_hujan": 30,
+      "suhu": 2,
+      "kelembapan": 5
+    },
+    "jenis_tanah": [
+      "Latosol/Tanah Merah",
+      "Podsolik Merah Kuning",
+      "Alluvial/Tanah Endapan Sungai",
+      "Tanah Lempung"
+    ]
+  },
+  "Kelapa": {
+    "kategori": "Pertanian & Perkebunan",
+    "curah_hujan": 145,
+    "suhu": 27,
+    "kelembapan": 85,
+    "toleransi": {
+      "curah_hujan": 30,
+      "suhu": 2,
+      "kelembapan": 5
+    },
+    "jenis_tanah": [
+      "Alluvial/Tanah Endapan Sungai",
+      "Sandy Loam/Tanah Liat Berpasir",
+      "Tanah Lempung"
+    ]
+  },
+  "Nanas": {
+    "kategori": "Buah-buahan",
+    "curah_hujan": 130,
+    "suhu": 26,
+    "kelembapan": 80,
+    "toleransi": {
+      "curah_hujan": 25,
+      "suhu": 2,
+      "kelembapan": 5
+    },
+    "jenis_tanah": [
+      "Regosol/Tanah Pasir",
+      "Latosol/Tanah Merah",
+      "Podsolik Merah Kuning",
+      "Andosol/Tanah Hitam Gunung",
+      "Gambut"
+    ]
+  },
+  "Kelapa Sawit": {
+    "kategori": "Pertanian & Perkebunan",
+    "curah_hujan": 150,
+    "suhu": 27,
+    "kelembapan": 85,
+    "toleransi": {
+      "curah_hujan": 30,
+      "suhu": 2,
+      "kelembapan": 5
+    },
+    "jenis_tanah": [
+      "Latosol/Tanah Merah",
+      "Podsolik Merah Kuning",
+      "Alluvial/Tanah Endapan Sungai",
+      "Tanah Lempung"
+    ]
+  }
+}

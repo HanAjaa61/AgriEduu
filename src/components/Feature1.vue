@@ -168,8 +168,10 @@
 
 import provincesData from "@/assets/provinces.json";
 import citiesData from "@/assets/cities_cleaned.json";
+import tanamanData from "@/assets/tanaman.json";
+import locationMapping from "@/assets/location_mapping.json";
 
-/* IMPORT GAMBAR TANAH — pastikan file ada di path yang sama */
+/* IMPORT GAMBAR TANAH */
 import Alluvial from "@/assets/alluvial.png";
 import Latosol from "@/assets/latosol.jpg";
 import Humus from "@/assets/humus.jpg";
@@ -182,76 +184,23 @@ import Lempung from "@/assets/lempung.jpg";
 import Sandyloam from "@/assets/sandyloam.jpg";
 
 const CACHE = {};
-const CACHE_TTL = 600 * 1000; // ms
+const CACHE_TTL = 600 * 1000; // 10 menit
 const OPEN_METEO_GEOCODE = "https://geocoding-api.open-meteo.com/v1/search";
 const OPEN_METEO_FORECAST = "https://api.open-meteo.com/v1/forecast";
+const OPEN_METEO_ARCHIVE = "https://archive-api.open-meteo.com/v1/archive";
 
-/* TANAMAN_DATA (sama persis dengan Flask) */
-const TANAMAN_DATA = {
-  "Padi": {"curah_hujan":150,"suhu":27,"kelembapan":75,
-           "toleransi":{"curah_hujan":50,"suhu":2,"kelembapan":2},
-           "jenis_tanah":["Alluvial/Tanah Endapan Sungai","Tanah Lempung","Latosol/Tanah Merah","Grumusol/Tanah Liat Berat"]},
-  "Jagung": {"curah_hujan":100,"suhu":25,"kelembapan":65,
-             "toleransi":{"curah_hujan":30,"suhu":4,"kelembapan":2},
-             "jenis_tanah":["Sandy Loam/Tanah Liat Berpasir","Tanah Lempung","Alluvial/Tanah Endapan Sungai","Latosol/Tanah Merah","Regosol/Tanah Pasir","Andosol/Tanah Hitam Gunung"]},
-  "Kedelai": {"curah_hujan":100,"suhu":25,"kelembapan":65,
-              "toleransi":{"curah_hujan":20,"suhu":3,"kelembapan":2},
-              "jenis_tanah":["Sandy Loam/Tanah Liat Berpasir","Tanah Lempung","Alluvial/Tanah Endapan Sungai","Andosol/Tanah Hitam Gunung"]},
-  "Kentang": {"curah_hujan":100,"suhu":20,"kelembapan":75,
-              "toleransi":{"curah_hujan":20,"suhu":2,"kelembapan":2},
-              "jenis_tanah":["Andosol/Tanah Hitam Gunung","Sandy Loam/Tanah Liat Berpasir","Loam/Humus","Latosol/Tanah Merah","Podsolik Merah Kuning","Regosol/Tanah Pasir"]},
-  "Pepaya": {"curah_hujan":150,"suhu":27,"kelembapan":75,
-             "toleransi":{"curah_hujan":50,"suhu":3,"kelembapan":2},
-             "jenis_tanah":["Alluvial/Tanah Endapan Sungai","Latosol/Tanah Merah","Loam/Humus","Andosol/Tanah Hitam Gunung"]},
-  "Mangga": {"curah_hujan":100,"suhu":28,"kelembapan":65,
-             "toleransi":{"curah_hujan":30,"suhu":3,"kelembapan":2},
-             "jenis_tanah":["Alluvial/Tanah Endapan Sungai","Latosol/Tanah Merah","Loam/Humus","Andosol/Tanah Hitam Gunung"]},
-  "Jeruk": {"curah_hujan":100,"suhu":27,"kelembapan":65,
-            "toleransi":{"curah_hujan":30,"suhu":3,"kelembapan":2},
-            "jenis_tanah":["Loam/Humus","Alluvial/Tanah Endapan Sungai","Latosol/Tanah Merah","Andosol/Tanah Hitam Gunung"]},
-  "Apel": {"curah_hujan":150,"suhu":22,"kelembapan":65,
-           "toleransi":{"curah_hujan":20,"suhu":2, "kelembapan":2},
-           "jenis_tanah":["Loam/Humus","Andosol/Tanah Hitam Gunung","Latosol/Tanah Merah"]},
-  "Pisang": {"curah_hujan":175,"suhu":27,"kelembapan":80,
-             "toleransi":{"curah_hujan":50,"suhu":3,"kelembapan":2},
-             "jenis_tanah":["Alluvial/Tanah Endapan Sungai","Loam/Humus","Latosol/Tanah Merah","Andosol/Tanah Hitam Gunung"]},
-  "Durian": {"curah_hujan":175,"suhu":27,"kelembapan":80,
-             "toleransi":{"curah_hujan":50,"suhu":3,"kelembapan":2},
-             "jenis_tanah":["Loam/Humus","Latosol/Tanah Merah","Andosol/Tanah Hitam Gunung"]},
-  "Cabai": {"curah_hujan":100,"suhu":25,"kelembapan":70,
-            "toleransi":{"curah_hujan":30,"suhu":5, "kelembapan":2},
-            "jenis_tanah":["Sandy Loam/Tanah Liat Berpasir","Alluvial/Tanah Endapan Sungai","Andosol/Tanah Hitam Gunung","Loam/Humus"]},
-  "Sawi": {"curah_hujan":115,"suhu":23,"kelembapan":75,
-           "toleransi":{"curah_hujan":30,"suhu":3,"kelembapan":2},
-           "jenis_tanah":["Sandy Loam/Tanah Liat Berpasir","Alluvial/Tanah Endapan Sungai","Loam/Humus","Latosol/Tanah Merah"]},
-  "Bayam": {"curah_hujan":100,"suhu":23,"kelembapan":70,
-            "toleransi":{"curah_hujan":30,"suhu":3,"kelembapan":2},
-            "jenis_tanah":["Alluvial/Tanah Endapan Sungai","Loam/Humus","Sandy Loam/Tanah Liat Berpasir","Andosol/Tanah Hitam Gunung"]},
-  "Kangkung": {"curah_hujan":150,"suhu":25,"kelembapan":75,
-               "toleransi":{"curah_hujan":50,"suhu":3,"kelembapan":2},
-               "jenis_tanah":["Alluvial/Tanah Endapan Sungai","Loam/Humus","Sandy Loam/Tanah Liat Berpasir","Latosol/Tanah Merah","Gambut"]},
-  "Kopi": {"curah_hujan":150,"suhu":23,"kelembapan":75,
-           "toleransi":{"curah_hujan":50,"suhu":3,"kelembapan":2},
-           "jenis_tanah":["Andosol/Tanah Hitam Gunung","Latosol/Tanah Merah","Grumusol/Tanah Liat Berat","Loam/Humus"]},
-  "Teh": {"curah_hujan":200,"suhu":23,"kelembapan":85,
-          "toleransi":{"curah_hujan":50,"suhu":2, "kelembapan":2},
-          "jenis_tanah":["Andosol/Tanah Hitam Gunung","Latosol/Tanah Merah","Podsolik Merah Kuning"]},
-  "Pohon Karet": {"curah_hujan":200,"suhu":27,"kelembapan":75,
-                  "toleransi":{"curah_hujan":50,"suhu":3,"kelembapan":2},
-                  "jenis_tanah":["Latosol/Tanah Merah","Podsolik Merah Kuning","Alluvial/Tanah Endapan Sungai","Tanah Lempung"]},
-  "Kelapa": {"curah_hujan":175,"suhu":28,"kelembapan":75,
-             "toleransi":{"curah_hujan":50,"suhu":3,"kelembapan":2},
-             "jenis_tanah":["Alluvial/Tanah Endapan Sungai","Sandy Loam/Tanah Liat Berpasir","Tanah Lempung"]},
-  "Nanas": {"curah_hujan":100,"suhu":25,"kelembapan":65,
-            "toleransi":{"curah_hujan":30,"suhu":3, "kelembapan":2},
-            "jenis_tanah":["Regosol/Tanah Pasir","Latosol/Tanah Merah","Podsolik Merah Kuning","Andosol/Tanah Hitam Gunung","Gambut"]},
-  "Kelapa Sawit": {"curah_hujan":200,"suhu":28,"kelembapan":80,
-                   "toleransi":{"curah_hujan":50,"suhu":3,"kelembapan":2},
-                   "jenis_tanah":["Latosol/Tanah Merah","Podsolik Merah Kuning","Alluvial/Tanah Endapan Sungai","Tanah Lempung"]}
+/* FALLBACK DATA */
+const FALLBACK = {
+  curah_hujan: 800,
+  suhu: 24,
+  kelembapan: 70,
+  jenis_tanah: [],
+  toleransi: {
+    curah_hujan: 10,
+    suhu: 10,
+    kelembapan: 10
+  }
 };
-
-/* FALLBACK sama persis */
-const FALLBACK = {"curah_hujan":800,"suhu":24,"kelembapan":70,"jenis_tanah":[],"toleransi":{"curah_hujan":10,"suhu":10,"kelembapan":10}};
 
 export default {
   name: "Feature1",
@@ -265,81 +214,19 @@ export default {
       selectedKabupaten: "",
       provinces: provincesData,
       allRegencies: citiesData,
+      tanamanDatabase: tanamanData,
       tanah: "",
       tanggal: "",
       loading: false,
       resultData: null,
+      
       notification: {
         show: false,
         message: "",
         type: "error",
         timeoutId: null,
       },
-      categories: {
-        "Buah-buahan": ["Pepaya", "Mangga", "Jeruk", "Apel", "Pisang", "Durian", "Nanas"],
-        "Pertanian & Perkebunan": [
-          "Padi",
-          "Jagung",
-          "Kedelai",
-          "Kentang",
-          "Cabai",
-          "Sawi",
-          "Bayam",
-          "Kangkung",
-          "Kopi",
-          "Teh",
-          "Pohon Karet",
-          "Kelapa",
-          "Kelapa Sawit",
-        ],
-      },
-      soilMapping: {
-        "Pepaya": ["Alluvial/Tanah Endapan Sungai", "Latosol/Tanah Merah", "Loam/Humus", "Andosol/Tanah Hitam Gunung"],
-        "Mangga": ["Alluvial/Tanah Endapan Sungai", "Latosol/Tanah Merah", "Loam/Humus", "Andosol/Tanah Hitam Gunung"],
-        "Jeruk": ["Loam/Humus", "Alluvial/Tanah Endapan Sungai", "Latosol/Tanah Merah", "Andosol/Tanah Hitam Gunung"],
-        "Apel": ["Loam/Humus", "Andosol/Tanah Hitam Gunung", "Latosol/Tanah Merah"],
-        "Pisang": ["Alluvial/Tanah Endapan Sungai", "Loam/Humus", "Latosol/Tanah Merah", "Andosol/Tanah Hitam Gunung"],
-        "Durian": ["Loam/Humus", "Latosol/Tanah Merah", "Andosol/Tanah Hitam Gunung"],
-        "Nanas": ["Regosol/Tanah Pasir", "Latosol/Tanah Merah", "Podsolik Merah Kuning", "Andosol/Tanah Hitam Gunung", "Gambut"],
-        "Padi": ["Alluvial/Tanah Endapan Sungai", "Tanah Lempung", "Latosol/Tanah Merah", "Grumusol/Tanah Liat Berat"],
-        "Jagung": [
-          "Sandy Loam/Tanah Liat Berpasir",
-          "Tanah Lempung",
-          "Alluvial/Tanah Endapan Sungai",
-          "Latosol/Tanah Merah",
-          "Regosol/Tanah Pasir",
-          "Andosol/Tanah Hitam Gunung",
-        ],
-        "Kedelai": [
-          "Sandy Loam/Tanah Liat Berpasir",
-          "Tanah Lempung",
-          "Alluvial/Tanah Endapan Sungai",
-          "Andosol/Tanah Hitam Gunung",
-        ],
-        "Kentang": [
-          "Andosol/Tanah Hitam Gunung",
-          "Sandy Loam/Tanah Liat Berpasir",
-          "Loam/Humus",
-          "Latosol/Tanah Merah",
-          "Podsolik Merah Kuning",
-          "Regosol/Tanah Pasir",
-        ],
-        "Cabai": ["Sandy Loam/Tanah Liat Berpasir", "Alluvial/Tanah Endapan Sungai", "Andosol/Tanah Hitam Gunung", "Loam/Humus"],
-        "Sawi": ["Sandy Loam/Tanah Liat Berpasir", "Alluvial/Tanah Endapan Sungai", "Loam/Humus", "Latosol/Tanah Merah"],
-        "Bayam": ["Alluvial/Tanah Endapan Sungai", "Loam/Humus", "Sandy Loam/Tanah Liat Berpasir", "Andosol/Tanah Hitam Gunung"],
-        "Kangkung": [
-          "Alluvial/Tanah Endapan Sungai",
-          "Loam/Humus",
-          "Sandy Loam/Tanah Liat Berpasir",
-          "Latosol/Tanah Merah",
-          "Gambut",
-        ],
-        "Kopi": ["Andosol/Tanah Hitam Gunung", "Latosol/Tanah Merah", "Grumusol/Tanah Liat Berat", "Loam/Humus"],
-        "Teh": ["Andosol/Tanah Hitam Gunung", "Latosol/Tanah Merah", "Podsolik Merah Kuning"],
-        "Pohon Karet": ["Latosol/Tanah Merah", "Podsolik Merah Kuning", "Alluvial/Tanah Endapan Sungai", "Tanah Lempung"],
-        "Kelapa": ["Alluvial/Tanah Endapan Sungai", "Sandy Loam/Tanah Liat Berpasir", "Tanah Lempung"],
-        "Kelapa Sawit": ["Latosol/Tanah Merah", "Podsolik Merah Kuning", "Alluvial/Tanah Endapan Sungai", "Tanah Lempung"],
-      },
+      
       soilImages: {
         "Alluvial/Tanah Endapan Sungai": Alluvial,
         "Latosol/Tanah Merah": Latosol,
@@ -356,14 +243,29 @@ export default {
   },
 
   computed: {
+    /* Ekstrak kategori dari tanamanDatabase */
+    categories() {
+      const cats = {};
+      for (const nama in this.tanamanDatabase) {
+        const kategori = this.tanamanDatabase[nama].kategori || "Lainnya";
+        if (!cats[kategori]) cats[kategori] = [];
+        cats[kategori].push(nama);
+      }
+      return cats;
+    },
+
+    /* Filter tanaman berdasarkan kategori */
     filteredTanaman() {
       return this.selectedCategory ? this.categories[this.selectedCategory] : [];
     },
 
+    /* Filter jenis tanah berdasarkan tanaman */
     filteredSoil() {
-      return this.selectedTanaman ? this.soilMapping[this.selectedTanaman] : [];
+      if (!this.selectedTanaman || !this.tanamanDatabase[this.selectedTanaman]) return [];
+      return this.tanamanDatabase[this.selectedTanaman].jenis_tanah || [];
     },
 
+    /* Filter kabupaten berdasarkan provinsi */
     filteredKabupaten() {
       if (!this.selectedProvinsi) return [];
       return this.allRegencies.filter(k => Number(k.province_id) === Number(this.selectedProvinsi));
@@ -371,6 +273,7 @@ export default {
   },
 
   methods: {
+    /* ==================== NOTIFICATION ==================== */
     showNotification(message, type = "error", duration = 3000) {
       clearTimeout(this.notification.timeoutId);
       this.notification.message = message;
@@ -381,6 +284,7 @@ export default {
       }, duration);
     },
 
+    /* ==================== FORM CONTROLS ==================== */
     resetForm() {
       this.selectedCategory = "";
       this.selectedTanaman = "";
@@ -401,7 +305,7 @@ export default {
       this.showForm = true;
     },
 
-    /* ----------------- CACHE HELPERS ----------------- */
+    /* ==================== CACHE HELPERS ==================== */
     cache_get(key) {
       const item = CACHE[key];
       if (!item) return null;
@@ -416,66 +320,226 @@ export default {
       CACHE[key] = { value, ts: Date.now() };
     },
 
-    /* ----------------- NORMALIZE LOCATION ----------------- */
-    normalize_location_name(raw) {
-      if (!raw) return raw;
-      let name = String(raw).toLowerCase();
-      const prefixes = ["kabupaten ", "kab ", "kab. ", "kota ", "kota administrasi "];
-      for (const p of prefixes) {
-        if (name.startsWith(p)) name = name.slice(p.length);
-      }
-      if (name.includes(",")) name = name.split(",")[0];
-      return name.trim().replace(/\b\w/g, c => c.toUpperCase());
+    /* ==================== DATE HELPERS ==================== */
+    getTodayString() {
+      // Dapatkan tanggal hari ini dalam format YYYY-MM-DD (lokal timezone)
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
     },
 
-    /* ----------------- GEOCODING ----------------- */
+    compareDates(dateStr1, dateStr2) {
+      // Bandingkan 2 tanggal string YYYY-MM-DD
+      // Return: -1 jika date1 < date2, 0 jika sama, 1 jika date1 > date2
+      if (dateStr1 < dateStr2) return -1;
+      if (dateStr1 > dateStr2) return 1;
+      return 0;
+    },
+
+    getDaysDifference(dateStr1, dateStr2) {
+      // Hitung selisih hari antara 2 tanggal (dateStr1 - dateStr2)
+      const date1Parts = dateStr1.split('-').map(Number);
+      const date2Parts = dateStr2.split('-').map(Number);
+      
+      const d1 = new Date(date1Parts[0], date1Parts[1] - 1, date1Parts[2]);
+      const d2 = new Date(date2Parts[0], date2Parts[1] - 1, date2Parts[2]);
+      
+      const diffMs = d1 - d2;
+      return Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    },
+
+    addDays(dateStr, days) {
+      // Tambahkan sejumlah hari ke tanggal string YYYY-MM-DD
+      const parts = dateStr.split('-').map(Number);
+      const date = new Date(parts[0], parts[1] - 1, parts[2]);
+      date.setDate(date.getDate() + days);
+      
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    },
+
+    /* ==================== LOCATION HELPERS ==================== */
+    
+    normalize_location_name(raw) {
+      if (!raw) return raw;
+      
+      // Step 1: Clean prefix dulu
+      let name = String(raw).toLowerCase();
+      const prefixes = ["kabupaten administrasi ", "kota administrasi ", "kabupaten ", "kab. ", "kab ", "kota "];
+      for (const p of prefixes) {
+        if (name.startsWith(p)) {
+          name = name.slice(p.length);
+          break; // Stop setelah ketemu prefix pertama
+        }
+      }
+      
+      // Step 2: Buang koma dan ambil nama pertama
+      if (name.includes(",")) {
+        name = name.split(",")[0];
+      }
+      
+      // Step 3: Title case
+      name = name.trim().replace(/\b\w/g, c => c.toUpperCase());
+      
+      // Step 4: Cek mapping dari file JSON
+      if (locationMapping[name]) {
+        console.log(`🔄 Location mapping: "${name}" → "${locationMapping[name]}"`);
+        return locationMapping[name];
+      }
+      
+      return name;
+    },
+
     async geocode_location(name) {
       const key = `geo:${String(name).trim().toLowerCase()}`;
       const cached = this.cache_get(key);
       if (cached) return cached;
+
       const params = new URLSearchParams({ name });
       const url = `${OPEN_METEO_GEOCODE}?${params.toString()}`;
+      
+      console.log(`🌍 Geocoding: "${name}"`);
+      
       const resp = await fetch(url, { method: "GET" });
+      
       if (!resp.ok) throw new Error(`Geocoding gagal: ${resp.status}`);
+      
       const j = await resp.json();
       const results = j.results;
-      if (!results || results.length === 0) throw new Error("Lokasi tidak ditemukan");
+      
+      if (!results || results.length === 0) {
+        // ✅ FALLBACK: Coba dengan nama provinsi saja
+        console.warn(`⚠️ Lokasi "${name}" tidak ditemukan, mencoba fallback...`);
+        
+        // Ambil nama provinsi dari selectedProvinsi
+        const provinceObj = this.provinces.find(p => Number(p.id) === Number(this.selectedProvinsi));
+        if (provinceObj) {
+          let provinceName = provinceObj.name;
+          console.log(`🔄 Fallback ke provinsi: "${provinceName}"`);
+          
+          // Normalisasi nama provinsi (buang prefix "Provinsi")
+          provinceName = provinceName.replace(/^Provinsi\s+/i, '').trim();
+          
+          const fallbackParams = new URLSearchParams({ name: provinceName });
+          const fallbackUrl = `${OPEN_METEO_GEOCODE}?${fallbackParams.toString()}`;
+          const fallbackResp = await fetch(fallbackUrl, { method: "GET" });
+          
+          if (fallbackResp.ok) {
+            const fallbackData = await fallbackResp.json();
+            if (fallbackData.results && fallbackData.results.length > 0) {
+              const lat = fallbackData.results[0].latitude;
+              const lon = fallbackData.results[0].longitude;
+              
+              console.log(`✅ Fallback berhasil: ${lat}, ${lon}`);
+              
+              this.showNotification(
+                `📍 Lokasi spesifik tidak ditemukan. Menggunakan koordinat provinsi ${provinceName}.`,
+                "warning",
+                4000
+              );
+              
+              this.cache_set(key, [lat, lon]);
+              return [lat, lon];
+            }
+          }
+        }
+        
+        throw new Error("Lokasi tidak ditemukan");
+      }
+      
       const lat = results[0].latitude;
       const lon = results[0].longitude;
-      if (lat == null || lon == null) throw new Error("Geocoding tidak mengembalikan koordinat");
+      
+      if (lat == null || lon == null) {
+        throw new Error("Geocoding tidak mengembalikan koordinat");
+      }
+      
+      console.log(`✅ Koordinat ditemukan: ${lat}, ${lon}`);
+      
       this.cache_set(key, [lat, lon]);
       return [lat, lon];
     },
 
-    /* ----------------- FORECAST ----------------- */
-    async fetch_forecast_open_meteo(lat, lon) {
-      const key = `fc:${lat}:${lon}`;
+    /* ==================== WEATHER DATA FETCHERS ==================== */
+    async fetch_forecast_open_meteo(lat, lon, days = 16) {
+      const key = `fc:${lat}:${lon}:${days}`;
       const cached = this.cache_get(key);
       if (cached) return cached;
+      
       const params = new URLSearchParams({
         latitude: String(lat),
         longitude: String(lon),
         daily: "temperature_2m_max,temperature_2m_min,precipitation_sum,relative_humidity_2m_mean",
-        timezone: "Asia/Jakarta"
+        timezone: "Asia/Jakarta",
+        forecast_days: String(days)
       });
+      
       const url = `${OPEN_METEO_FORECAST}?${params.toString()}`;
       const resp = await fetch(url, { method: "GET" });
+      
       if (!resp.ok) throw new Error(`Forecast gagal: ${resp.status}`);
+      
       const j = await resp.json();
       if (!j.daily) throw new Error("Data forecast tidak tersedia");
+      
       this.cache_set(key, j);
       return j;
     },
 
-    /* ----------------- UTILS ----------------- */
-    round2(v) {
-      try { return Math.round(Number(v) * 100) / 100; }
-      catch { return v; }
+    async fetch_historical_data(lat, lon, startDate) {
+      // Hanya untuk tanggal >16 hari ke depan (referensi tahun lalu)
+      const key = `hist:${lat}:${lon}:${startDate}`;
+      const cached = this.cache_get(key);
+      if (cached) return cached;
+      
+      // Ambil 16 hari (konsisten dengan forecast)
+      const endDate = this.addDays(startDate, 15); // +15 = total 16 hari
+      
+      const params = new URLSearchParams({
+        latitude: String(lat),
+        longitude: String(lon),
+        start_date: startDate,
+        end_date: endDate,
+        daily: "temperature_2m_max,temperature_2m_min,precipitation_sum,relative_humidity_2m_mean",
+        timezone: "Asia/Jakarta"
+      });
+      
+      const url = `${OPEN_METEO_ARCHIVE}?${params.toString()}`;
+      const resp = await fetch(url, { method: "GET" });
+      
+      if (!resp.ok) {
+        throw new Error(`Historical data gagal: ${resp.status}`);
+      }
+      
+      const j = await resp.json();
+      if (!j.daily) throw new Error("Data historis tidak tersedia");
+      
+      this.cache_set(key, j);
+      return j;
     },
 
-    safe_float(v, def=0.0) {
+    /* ==================== DATA PROCESSING ==================== */
+    round2(v) {
+      try {
+        return Math.round(Number(v) * 100) / 100;
+      } catch {
+        return v;
+      }
+    },
+
+    safe_float(v, def = 0.0) {
       const n = Number(v);
       return Number.isFinite(n) ? n : def;
+    },
+
+    safe_list(lst, n) {
+      if (!Array.isArray(lst)) return Array(n).fill(0.0);
+      if (lst.length >= n) return lst.slice(0, n);
+      return lst.concat(Array(n - lst.length).fill(0.0));
     },
 
     evaluate_indicator(actual, ideal, toleransi) {
@@ -485,71 +549,242 @@ export default {
         const t = Number(toleransi);
         const diff = Math.abs(a - i);
         const status = diff <= t ? "Optimal" : "Kurang Optimal";
-        return { actual: this.round2(a), ideal: this.round2(i), toleransi: t, diff: this.round2(diff), status };
+        
+        return {
+          actual: this.round2(a),
+          ideal: this.round2(i),
+          toleransi: t,
+          diff: this.round2(diff),
+          status
+        };
       } catch (e) {
         console.error("evaluateIndicator error:", e);
-        return { actual: actual, ideal: ideal, toleransi: toleransi, diff: null, status: "Tidak tersedia" };
+        return {
+          actual: actual,
+          ideal: ideal,
+          toleransi: toleransi,
+          diff: null,
+          status: "Tidak tersedia"
+        };
       }
     },
 
-    build_suggestions(ch_obj, suhu_obj, kelembapan_obj, tanah_ok, tanah_user, ideal_tanah_list) {
+    build_suggestions(ch_obj, suhu_obj, kelembapan_obj, tanah_ok, ideal_tanah_list) {
       const suggestions = [];
+      
+      // Saran Curah Hujan
       if (ch_obj.status !== "Optimal") {
-        const a = this.safe_float(ch_obj.actual), i = this.safe_float(ch_obj.ideal);
-        if (a < i) suggestions.push(`Curah hujan kurang ~${this.round2(i - a)} mm/bulan. Tambahkan penyiraman.`);
-        else suggestions.push(`Curah hujan berlebih ~${this.round2(a - i)} mm/bulan. Kurangi irigasi/drainase.`);
+        const a = this.safe_float(ch_obj.actual);
+        const i = this.safe_float(ch_obj.ideal);
+        
+        if (a === 0) {
+          suggestions.push("⚠️ Tidak ada curah hujan terdeteksi. Pastikan sistem irigasi berfungsi optimal.");
+        } else if (a < i) {
+          suggestions.push(`💧 Curah hujan kurang ~${this.round2(i - a)} mm (16 hari). Tambahkan penyiraman rutin.`);
+        } else {
+          suggestions.push(`☔ Curah hujan berlebih ~${this.round2(a - i)} mm (16 hari). Perbaiki sistem drainase.`);
+        }
       }
+      
+      // Saran Suhu
       if (suhu_obj.status !== "Optimal") {
-        const a = this.safe_float(suhu_obj.actual), i = this.safe_float(suhu_obj.ideal);
-        if (a < i) suggestions.push("Suhu rendah. Gunakan mulsa gelap atau mini greenhouse.");
-        else suggestions.push("Suhu tinggi. Gunakan naungan atau penyiraman pendinginan.");
+        const a = this.safe_float(suhu_obj.actual);
+        const i = this.safe_float(suhu_obj.ideal);
+        
+        if (a === 0) {
+          suggestions.push("⚠️ Data suhu tidak tersedia. Monitoring manual diperlukan.");
+        } else if (a < i) {
+          suggestions.push(`🌡️ Suhu rendah (~${this.round2(i - a)}°C di bawah ideal). Gunakan mulsa gelap atau mini greenhouse.`);
+        } else {
+          suggestions.push(`🌡️ Suhu tinggi (~${this.round2(a - i)}°C di atas ideal). Gunakan naungan atau penyiraman pendinginan.`);
+        }
       }
+      
+      // Saran Kelembapan
       if (kelembapan_obj.status !== "Optimal") {
-        const a = this.safe_float(kelembapan_obj.actual), i = this.safe_float(kelembapan_obj.ideal);
-        if (a < i) suggestions.push("Kelembapan rendah. Tingkatkan penyiraman atau gunakan mulsa.");
-        else suggestions.push("Kelembapan tinggi. Perbaiki drainase/sirkulasi.");
+        const a = this.safe_float(kelembapan_obj.actual);
+        const i = this.safe_float(kelembapan_obj.ideal);
+        
+        if (a === 0) {
+          suggestions.push("⚠️ Data kelembapan tidak tersedia. Pantau kondisi tanah secara manual.");
+        } else if (a < i) {
+          suggestions.push(`💨 Kelembapan rendah (~${this.round2(i - a)}% di bawah ideal). Tingkatkan penyiraman atau gunakan mulsa.`);
+        } else {
+          suggestions.push(`💨 Kelembapan tinggi (~${this.round2(a - i)}% di atas ideal). Perbaiki drainase dan sirkulasi udara.`);
+        }
       }
+      
+      // Saran Tanah
       if (!tanah_ok) {
-        if (ideal_tanah_list && ideal_tanah_list.length) suggestions.push(`Jenis tanah kurang cocok. Disarankan: ${ideal_tanah_list.join(', ')}.`);
-        else suggestions.push("Jenis tanah tidak diketahui. Pertimbangkan analisis laboratorium.");
+        if (ideal_tanah_list && ideal_tanah_list.length) {
+          suggestions.push(`🌱 Jenis tanah kurang cocok. Disarankan: ${ideal_tanah_list.slice(0, 2).join(', ')}.`);
+        } else {
+          suggestions.push("🌱 Jenis tanah tidak diketahui. Pertimbangkan analisis laboratorium.");
+        }
       }
-      if (!suggestions.length) suggestions.push("Semua indikator optimal. Pertahankan perawatan standar.");
+      
+      if (!suggestions.length) {
+        suggestions.push("✅ Semua indikator optimal. Pertahankan perawatan standar.");
+      }
+      
       return suggestions;
     },
 
-    /* ----------------- SUBMIT (client-side replacement) ----------------- */
+    /* ==================== MAIN SUBMIT HANDLER ==================== */
     async submitForm() {
-      if (!this.selectedCategory || !this.selectedTanaman || !this.selectedProvinsi || !this.selectedKabupaten || !this.tanah) {
+      // Validasi input
+      if (!this.selectedCategory || !this.selectedTanaman || 
+          !this.selectedProvinsi || !this.selectedKabupaten || !this.tanah) {
         this.showNotification("Harap isi semua kolom data untuk memprediksi.");
         return;
       }
 
       this.loading = true;
-      const lokasi = `${this.selectedKabupaten}, ${this.provinces.find(p => Number(p.id) === Number(this.selectedProvinsi)).name}`;
+      
+      const provinceObj = this.provinces.find(p => Number(p.id) === Number(this.selectedProvinsi));
+      const lokasi = `${this.selectedKabupaten}, ${provinceObj ? provinceObj.name : ''}`;
 
       try {
+        // Step 1: Geocoding
         const normalized = this.normalize_location_name(lokasi);
         let lat, lon;
+        
+        console.log('📍 GEOCODING DEBUG:');
+        console.log('  Input lokasi:', lokasi);
+        console.log('  Setelah normalisasi:', normalized);
+        
         try {
           [lat, lon] = await this.geocode_location(normalized);
         } catch (geoErr) {
-          console.error("Geocoding error:", geoErr);
-          this.showNotification("Kota/Lokasi tidak ditemukan.", "error", 4000);
+          console.error("❌ Geocoding error:", geoErr);
+          this.showNotification("Lokasi tidak ditemukan: " + geoErr.message, "error", 4000);
           this.loading = false;
           return;
         }
 
+        // Step 2: Validasi dan Fetch Weather Data
         let fc;
-        try {
-          fc = await this.fetch_forecast_open_meteo(lat, lon);
-        } catch (fcErr) {
-          console.error(fcErr);
-          this.showNotification("Gagal mengambil data cuaca.", "error", 4000);
-          this.loading = false;
-          return;
+        let dataSource = "Forecast (Real-time)";
+        let periodInfo = "";
+        const todayStr = this.getTodayString();
+        
+        console.log('='.repeat(60));
+        console.log('🚀 MULAI PROSES PREDIKSI');
+        console.log('='.repeat(60));
+        
+        if (this.tanggal) {
+          const compareResult = this.compareDates(this.tanggal, todayStr);
+          const diffDays = this.getDaysDifference(this.tanggal, todayStr);
+          
+          console.log('📅 INFO TANGGAL:');
+          console.log({
+            tanggalInput: this.tanggal,
+            tanggalSekarang: todayStr,
+            selisihHari: diffDays,
+            status: diffDays === 0 ? 'HARI INI' : diffDays > 0 ? `+${diffDays} hari kedepan` : `${diffDays} hari lalu`
+          });
+          
+          // ❌ TOLAK tanggal masa lalu
+          if (compareResult < 0) {
+            this.showNotification(
+              "⚠️ Pilih tanggal sekarang atau kedepannya", 
+              "error", 
+              4000
+            );
+            this.loading = false;
+            return;
+          }
+          
+          // ✅ Tanggal HARI INI atau MASA DEPAN
+          if (diffDays === 0) {
+            // HARI INI
+            fc = await this.fetch_forecast_open_meteo(lat, lon, 16);
+            dataSource = "Forecast (Hari Ini)";
+            
+            const endDateStr = this.addDays(todayStr, 15);
+            periodInfo = `${this.tanggal} s/d ${endDateStr} (16 hari)`;
+            
+          } else if (diffDays > 0 && diffDays <= 16) {
+            // 1-16 HARI KE DEPAN
+            this.showNotification(
+              `📅 Menggunakan data forecast untuk ${diffDays} hari ke depan`, 
+              "success", 
+              3000
+            );
+            
+            fc = await this.fetch_forecast_open_meteo(lat, lon, 16);
+            dataSource = `Forecast (+${diffDays} hari)`;
+            
+            const endDateStr = this.addDays(this.tanggal, 15);
+            periodInfo = `${this.tanggal} s/d ${endDateStr}`;
+            
+            // Filter data: skip hari-hari sebelum tanggal yang dipilih
+            if (fc.daily && fc.daily.time) {
+              const startIdx = fc.daily.time.findIndex(d => d === this.tanggal);
+              if (startIdx >= 0) {
+                console.log(`✂️ Memfilter data: skip ${startIdx} hari pertama, mulai dari index ${startIdx}`);
+                fc.daily.time = fc.daily.time.slice(startIdx);
+                fc.daily.precipitation_sum = fc.daily.precipitation_sum?.slice(startIdx) || [];
+                fc.daily.temperature_2m_max = fc.daily.temperature_2m_max?.slice(startIdx) || [];
+                fc.daily.temperature_2m_min = fc.daily.temperature_2m_min?.slice(startIdx) || [];
+                fc.daily.relative_humidity_2m_mean = fc.daily.relative_humidity_2m_mean?.slice(startIdx) || [];
+              }
+            }
+            
+          } else {
+            // >16 HARI - gunakan data historis tahun lalu sebagai referensi
+            this.showNotification(
+              `📅 Tanggal terlalu jauh (${diffDays} hari). Menggunakan data historis periode sama tahun lalu sebagai referensi.`, 
+              "warning", 
+              5000
+            );
+            
+            try {
+              // Hitung tanggal tahun lalu
+              const parts = this.tanggal.split('-').map(Number);
+              const lastYearDate = `${parts[0] - 1}-${String(parts[1]).padStart(2, '0')}-${String(parts[2]).padStart(2, '0')}`;
+              
+              console.log(`📆 Mengambil data historis: ${lastYearDate} (tahun lalu)`);
+              
+              fc = await this.fetch_historical_data(lat, lon, lastYearDate);
+              dataSource = "Data Historis (Tahun Lalu)";
+              
+              const endDateStr = this.addDays(lastYearDate, 15);
+              periodInfo = `${lastYearDate} s/d ${endDateStr} (16 hari - Referensi Tahun Lalu)`;
+              
+              // ⚠️ Warning tambahan untuk data tahun lalu
+              setTimeout(() => {
+                this.showNotification(
+                  `ℹ️ Data cuaca dari tahun lalu digunakan sebagai referensi. Kondisi aktual tahun ini bisa berbeda.`, 
+                  "info", 
+                  6000
+                );
+              }, 5500);
+            } catch (histErr) {
+              console.error("Historical fallback error:", histErr);
+              this.showNotification(
+                "Data tidak tersedia. Menggunakan forecast terbaru.", 
+                "warning", 
+                4000
+              );
+              fc = await this.fetch_forecast_open_meteo(lat, lon, 16);
+              dataSource = "Forecast (Fallback)";
+              
+              const endDateStr = this.addDays(todayStr, 15);
+              periodInfo = `${todayStr} s/d ${endDateStr} (16 hari)`;
+            }
+          }
+          
+        } else {
+          // TIDAK ADA TANGGAL - default hari ini + 16 hari
+          fc = await this.fetch_forecast_open_meteo(lat, lon, 16);
+          dataSource = "Forecast (Hari Ini)";
+          
+          const endDateStr = this.addDays(todayStr, 15);
+          periodInfo = `Hari ini s/d ${endDateStr} (16 hari)`;
         }
 
-        // ambil data daily
+        // Step 3: Process Weather Data
         const daily = fc.daily || {};
         const time_list = daily.time || [];
         const precip_list = daily.precipitation_sum || [];
@@ -557,79 +792,285 @@ export default {
         const tmin_list = daily.temperature_2m_min || [];
         const rh_list = daily.relative_humidity_2m_mean || [];
 
-        const n = Math.max(1, Math.min(time_list.length, precip_list.length, tmax_list.length, tmin_list.length, rh_list.length));
+        const n = Math.max(1, Math.min(
+          time_list.length,
+          precip_list.length,
+          tmax_list.length,
+          tmin_list.length,
+          rh_list.length
+        ));
 
-        const safe_list = (lst, n) => {
-          if (!Array.isArray(lst)) return Array(n).fill(0.0);
-          if (lst.length >= n) return lst.slice(0, n);
-          return lst.concat(Array(n - lst.length).fill(0.0));
-        };
+        console.log('\n' + '='.repeat(60));
+        console.log('📊 DATA WEATHER MENTAH (API Response)');
+        console.log('='.repeat(60));
+        console.log('Data Source:', dataSource);
+        console.log('Jumlah Hari:', n);
+        console.log('Periode:', time_list.length > 0 ? `${time_list[0]} s/d ${time_list[time_list.length - 1]}` : 'N/A');
+        console.log('\nData Harian (5 hari pertama untuk sample):');
+        console.log('Tanggal:', time_list.slice(0, 5));
+        console.log('Curah Hujan (mm):', precip_list.slice(0, 5).map(v => this.round2(v)));
+        console.log('Suhu Max (°C):', tmax_list.slice(0, 5).map(v => this.round2(v)));
+        console.log('Suhu Min (°C):', tmin_list.slice(0, 5).map(v => this.round2(v)));
+        console.log('Kelembapan (%):', rh_list.slice(0, 5).map(v => this.round2(v)));
 
-        const precip = safe_list(precip_list, n).map(x => this.safe_float(x));
-        const tmax = safe_list(tmax_list, n).map(x => this.safe_float(x));
-        const tmin = safe_list(tmin_list, n).map(x => this.safe_float(x));
-        const rh = safe_list(rh_list, n).map(x => this.safe_float(x));
+        const precip = this.safe_list(precip_list, n).map(x => this.safe_float(x));
+        const tmax = this.safe_list(tmax_list, n).map(x => this.safe_float(x));
+        const tmin = this.safe_list(tmin_list, n).map(x => this.safe_float(x));
+        const rh = this.safe_list(rh_list, n).map(x => this.safe_float(x));
 
-        const avg_daily_precip = precip.reduce((a,b)=>a+b,0)/n;
-        const curah_hujan_bulanan = avg_daily_precip * 30;
-        const suhu_avg = (tmax.reduce((a,b)=>a+b,0) + tmin.reduce((a,b)=>a+b,0)) / (2*n);
-        const kelembapan_avg = rh.reduce((a,b)=>a+b,0)/n;
+        console.log('\n' + '='.repeat(60));
+        console.log('🧮 PERHITUNGAN RATA-RATA (16 HARI)');
+        console.log('='.repeat(60));
 
-        const ideal = TANAMAN_DATA[this.selectedTanaman] || FALLBACK;
-        const used_fallback = !(this.selectedTanaman in TANAMAN_DATA);
-        const toleransi = ideal.toleransi || (FALLBACK.toleransi);
+        // ✅ CURAH HUJAN: TOTAL 16 HARI (bukan per bulan!)
+        const total_curah_hujan_16_hari = precip.reduce((a, b) => a + b, 0);
+        const avg_daily_precip = total_curah_hujan_16_hari / n;
+        
+        console.log('\n💧 CURAH HUJAN:');
+        console.log('  Data per hari (mm):', precip.map(v => this.round2(v)));
+        console.log('  Total 16 hari:', this.round2(total_curah_hujan_16_hari), 'mm');
+        console.log('  Rata-rata harian:', this.round2(avg_daily_precip), 'mm/hari');
+        console.log('  Rumus: SUM(' + precip.map(v => this.round2(v)).join(' + ') + ') = ' + this.round2(total_curah_hujan_16_hari) + ' mm');
+        
+        // ✅ SUHU: RATA-RATA 16 HARI
+        const avg_tmax = tmax.reduce((a, b) => a + b, 0) / n;
+        const avg_tmin = tmin.reduce((a, b) => a + b, 0) / n;
+        const suhu_avg = (avg_tmax + avg_tmin) / 2;
+        
+        console.log('\n🌡️ SUHU:');
+        console.log('  Suhu Max per hari (°C):', tmax.map(v => this.round2(v)));
+        console.log('  Suhu Min per hari (°C):', tmin.map(v => this.round2(v)));
+        console.log('  Rata-rata Tmax:', this.round2(avg_tmax), '°C');
+        console.log('  Rata-rata Tmin:', this.round2(avg_tmin), '°C');
+        console.log('  Rata-rata Suhu:', this.round2(suhu_avg), '°C');
+        console.log('  Rumus: (Avg_Tmax + Avg_Tmin) / 2 = (' + this.round2(avg_tmax) + ' + ' + this.round2(avg_tmin) + ') / 2 = ' + this.round2(suhu_avg) + '°C');
+        
+        // ✅ KELEMBAPAN: RATA-RATA 16 HARI
+        const kelembapan_avg = rh.reduce((a, b) => a + b, 0) / n;
+        
+        console.log('\n💨 KELEMBAPAN:');
+        console.log('  Kelembapan per hari (%):', rh.map(v => this.round2(v)));
+        console.log('  Rata-rata Kelembapan:', this.round2(kelembapan_avg), '%');
+        console.log('  Rumus: SUM(' + rh.map(v => this.round2(v)).join(' + ') + ') / ' + n + ' = ' + this.round2(kelembapan_avg) + '%');
 
-        const ch_obj = this.evaluate_indicator(curah_hujan_bulanan, ideal.curah_hujan, toleransi.curah_hujan);
-        const suhu_obj = this.evaluate_indicator(suhu_avg, ideal.suhu, toleransi.suhu);
-        const kelembapan_obj = this.evaluate_indicator(kelembapan_avg, ideal.kelembapan, toleransi.kelembapan);
+        // Warning untuk data 0
+        const warnings = [];
+        if (total_curah_hujan_16_hari === 0) {
+          warnings.push("Curah hujan 0mm terdeteksi");
+        }
+        if (suhu_avg === 0) {
+          warnings.push("Data suhu tidak tersedia");
+        }
+        if (kelembapan_avg === 0) {
+          warnings.push("Data kelembapan tidak tersedia");
+        }
+        
+        if (warnings.length > 0) {
+          console.warn('\n⚠️ PERINGATAN:', warnings.join(', '));
+          this.showNotification(
+            `⚠️ ${warnings.join(', ')}. Data mungkin tidak lengkap atau dalam musim ekstrem.`,
+            "warning",
+            5000
+          );
+        }
 
+        // Step 4: Get Ideal Values
+        const ideal = this.tanamanDatabase[this.selectedTanaman] || FALLBACK;
+        const used_fallback = !(this.selectedTanaman in this.tanamanDatabase);
+        const toleransi = ideal.toleransi || FALLBACK.toleransi;
+
+        console.log('\n' + '='.repeat(60));
+        console.log('🎯 DATA IDEAL TANAMAN');
+        console.log('='.repeat(60));
+        console.log('Tanaman:', this.selectedTanaman);
+        console.log('Curah Hujan Ideal:', ideal.curah_hujan, 'mm (16 hari)');
+        console.log('Suhu Ideal:', ideal.suhu, '°C');
+        console.log('Kelembapan Ideal:', ideal.kelembapan, '%');
+        console.log('Toleransi Curah Hujan:', toleransi.curah_hujan, 'mm');
+        console.log('Toleransi Suhu:', toleransi.suhu, '°C');
+        console.log('Toleransi Kelembapan:', toleransi.kelembapan, '%');
+
+        // Step 5: Evaluate Indicators
+        console.log('\n' + '='.repeat(60));
+        console.log('📈 EVALUASI INDIKATOR');
+        console.log('='.repeat(60));
+
+        const ch_obj = this.evaluate_indicator(
+          total_curah_hujan_16_hari,
+          ideal.curah_hujan,
+          toleransi.curah_hujan
+        );
+        
+        console.log('\n💧 Evaluasi Curah Hujan:');
+        console.log('  Aktual:', ch_obj.actual, 'mm (16 hari)');
+        console.log('  Ideal:', ch_obj.ideal, 'mm');
+        console.log('  Toleransi:', ch_obj.toleransi, 'mm');
+        console.log('  Selisih:', ch_obj.diff, 'mm');
+        console.log('  Status:', ch_obj.status);
+        console.log('  Logika: |' + ch_obj.actual + ' - ' + ch_obj.ideal + '| = ' + ch_obj.diff + (ch_obj.diff <= ch_obj.toleransi ? ' ≤ ' : ' > ') + ch_obj.toleransi + ' → ' + ch_obj.status);
+        
+        const suhu_obj = this.evaluate_indicator(
+          suhu_avg,
+          ideal.suhu,
+          toleransi.suhu
+        );
+        
+        console.log('\n🌡️ Evaluasi Suhu:');
+        console.log('  Aktual:', suhu_obj.actual, '°C');
+        console.log('  Ideal:', suhu_obj.ideal, '°C');
+        console.log('  Toleransi:', suhu_obj.toleransi, '°C');
+        console.log('  Selisih:', suhu_obj.diff, '°C');
+        console.log('  Status:', suhu_obj.status);
+        console.log('  Logika: |' + suhu_obj.actual + ' - ' + suhu_obj.ideal + '| = ' + suhu_obj.diff + (suhu_obj.diff <= suhu_obj.toleransi ? ' ≤ ' : ' > ') + suhu_obj.toleransi + ' → ' + suhu_obj.status);
+        
+        const kelembapan_obj = this.evaluate_indicator(
+          kelembapan_avg,
+          ideal.kelembapan,
+          toleransi.kelembapan
+        );
+        
+        console.log('\n💨 Evaluasi Kelembapan:');
+        console.log('  Aktual:', kelembapan_obj.actual, '%');
+        console.log('  Ideal:', kelembapan_obj.ideal, '%');
+        console.log('  Toleransi:', kelembapan_obj.toleransi, '%');
+        console.log('  Selisih:', kelembapan_obj.diff, '%');
+        console.log('  Status:', kelembapan_obj.status);
+        console.log('  Logika: |' + kelembapan_obj.actual + ' - ' + kelembapan_obj.ideal + '| = ' + kelembapan_obj.diff + (kelembapan_obj.diff <= kelembapan_obj.toleransi ? ' ≤ ' : ' > ') + kelembapan_obj.toleransi + ' → ' + kelembapan_obj.status);
+
+        // Step 6: Evaluate Soil
         const ideal_tanah_list = ideal.jenis_tanah || [];
-        const tanah_ok = ideal_tanah_list.length ? (ideal_tanah_list.includes(this.tanah)) : false;
+        const tanah_ok = ideal_tanah_list.length ? ideal_tanah_list.includes(this.tanah) : false;
         const tanah_status = tanah_ok ? "Optimal" : (ideal_tanah_list.length ? "Tidak cocok" : "Tidak diketahui");
 
-        // scoring (sama seperti Flask)
+        console.log('\n🌱 Evaluasi Jenis Tanah:');
+        console.log('  Tanah Aktual:', this.tanah);
+        console.log('  Tanah Ideal:', ideal_tanah_list.join(', ') || 'Tidak ada data');
+        console.log('  Status:', tanah_status);
+
+        // Step 7: Calculate Score
         let score = 0;
-        score += ch_obj.status === "Optimal" ? 20 : 0;
-        score += suhu_obj.status === "Optimal" ? 30 : 0;
-        score += kelembapan_obj.status === "Optimal" ? 15 : 0;
-        score += tanah_ok ? 10 : 0;
+        const score_breakdown = {};
+        
+        if (ch_obj.status === "Optimal") {
+          score += 20;
+          score_breakdown.curah_hujan = 20;
+        } else {
+          score_breakdown.curah_hujan = 0;
+        }
+        
+        if (suhu_obj.status === "Optimal") {
+          score += 30;
+          score_breakdown.suhu = 30;
+        } else {
+          score_breakdown.suhu = 0;
+        }
+        
+        if (kelembapan_obj.status === "Optimal") {
+          score += 15;
+          score_breakdown.kelembapan = 15;
+        } else {
+          score_breakdown.kelembapan = 0;
+        }
+        
+        if (tanah_ok) {
+          score += 10;
+          score_breakdown.tanah = 10;
+        } else {
+          score_breakdown.tanah = 0;
+        }
+        
         const total_suitability = Math.min(Math.max(parseInt(score), 0), 75);
 
-        const suggestions = this.build_suggestions(ch_obj, suhu_obj, kelembapan_obj, tanah_ok, this.tanah, ideal_tanah_list);
+        console.log('\n' + '='.repeat(60));
+        console.log('🎯 SKOR KESESUAIAN');
+        console.log('='.repeat(60));
+        console.log('Breakdown Skor:');
+        console.log('  Curah Hujan:', score_breakdown.curah_hujan, '/ 20 poin');
+        console.log('  Suhu:', score_breakdown.suhu, '/ 30 poin');
+        console.log('  Kelembapan:', score_breakdown.kelembapan, '/ 15 poin');
+        console.log('  Jenis Tanah:', score_breakdown.tanah, '/ 10 poin');
+        console.log('─'.repeat(40));
+        console.log('TOTAL SKOR:', total_suitability, '/ 75 poin');
+        console.log('Persentase:', this.round2((total_suitability / 75) * 100) + '%');
 
+        // Step 8: Generate Suggestions
+        const suggestions = this.build_suggestions(
+          ch_obj,
+          suhu_obj,
+          kelembapan_obj,
+          tanah_ok,
+          ideal_tanah_list
+        );
+
+        console.log('\n' + '='.repeat(60));
+        console.log('💡 SARAN & REKOMENDASI');
+        console.log('='.repeat(60));
+        suggestions.forEach((s, i) => {
+          console.log((i + 1) + '.', s);
+        });
+
+        // Step 9: Build Metadata
         const meta = {
-          lat, lon,
+          lat,
+          lon,
+          data_source: dataSource,
+          period: periodInfo || `${n} hari data`,
+          days_calculated: n,
           cached_geo: Boolean(this.cache_get(`geo:${normalized.toLowerCase()}`)),
-          cached_forecast: Boolean(this.cache_get(`fc:${lat}:${lon}`))
+          cached_forecast: Boolean(this.cache_get(`fc:${lat}:${lon}:16`))
         };
 
-        // bentuk response compatible dengan template
+        console.log('\n' + '='.repeat(60));
+        console.log('ℹ️ METADATA');
+        console.log('='.repeat(60));
+        console.log('Koordinat:', `${lat}, ${lon}`);
+        console.log('Sumber Data:', dataSource);
+        console.log('Periode:', periodInfo);
+        console.log('Jumlah Hari:', n);
+        console.log('Cache Geo:', meta.cached_geo ? 'Ya' : 'Tidak');
+        console.log('Cache Forecast:', meta.cached_forecast ? 'Ya' : 'Tidak');
+        console.log('='.repeat(60));
+
+        // Step 10: Build Result
         this.resultData = {
           tanaman: this.selectedTanaman,
           lokasi,
           lokasi_normalized: normalized,
-          tanggal: this.tanggal,
+          tanggal: this.tanggal || "Hari ini",
           score: total_suitability,
-          curah_hujan_bulanan: this.round2(curah_hujan_bulanan),
+          curah_hujan_16_hari: this.round2(total_curah_hujan_16_hari),
           suhu_actual: this.round2(suhu_avg),
           kelembapan_actual: this.round2(kelembapan_avg),
           factors: [
-            Object.assign({ label: "Curah Hujan" }, ch_obj),
+            Object.assign({ label: "Curah Hujan (16 hari)" }, ch_obj),
             Object.assign({ label: "Suhu" }, suhu_obj),
             Object.assign({ label: "Kelembapan" }, kelembapan_obj),
-            { label: "Jenis Tanah", actual: this.tanah, ideal: ideal_tanah_list, diff: null, status: tanah_status }
+            {
+              label: "Jenis Tanah",
+              actual: this.tanah,
+              ideal: ideal_tanah_list,
+              diff: null,
+              status: tanah_status
+            }
           ],
           saran: suggestions,
           note: used_fallback ? "fallback" : "data_tersedia",
           meta
         };
 
-        // tampilkan hasil
+        // Tampilkan hasil
         this.showForm = false;
 
+        console.log('\n✅ PROSES PREDIKSI SELESAI!');
+        console.log('='.repeat(60) + '\n');
+
       } catch (e) {
-        console.error(e);
-        this.showNotification("Kesalahan saat memproses prediksi.", "error", 4500);
+        console.error("Submit error:", e);
+        this.showNotification(
+          "Kesalahan saat memproses prediksi: " + e.message,
+          "error",
+          4500
+        );
       } finally {
         this.loading = false;
       }
@@ -642,27 +1083,54 @@ export default {
 /* --- Notifikasi Toast --- */
 .toast-notification {
   position: fixed;
-  top: 60px;
+  top: 20px;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 3000;
-  padding: 12px 20px;
-  border-radius: 10px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+  z-index: 9999;
+  padding: 14px 24px;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
   display: flex;
   align-items: center;
   font-weight: 600;
   color: white;
+  min-width: 300px;
+  max-width: 500px;
   transition: all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
 .toast-error {
-  background-color: #ef4444; /* Merah */
+  background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+  border: 2px solid #fca5a5;
+}
+
+.toast-success {
+  background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+  border: 2px solid #6ee7b7;
+}
+
+.toast-warning {
+  background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
+  border: 2px solid #fcd34d;
+}
+
+.toast-info {
+  background: linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%);
+  border: 2px solid #7dd3fc;
 }
 
 .toast-icon {
-  margin-right: 10px;
-  font-size: 1.2rem;
+  margin-right: 12px;
+  font-size: 1.3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toast-message {
+  flex: 1;
+  font-size: 0.95rem;
+  line-height: 1.4;
 }
 
 .toast-slide-enter-active, .toast-slide-leave-active {
@@ -670,11 +1138,11 @@ export default {
 }
 .toast-slide-enter-from {
   opacity: 0;
-  transform: translateX(-50%) translateY(-30px);
+  transform: translateX(-50%) translateY(-40px);
 }
 .toast-slide-leave-to {
   opacity: 0;
-  transform: translateX(-50%) translateY(-30px);
+  transform: translateX(-50%) translateY(-40px);
 }
 
 /* --- Transisi Utama Form/Overlay --- */
@@ -1001,6 +1469,16 @@ export default {
 .advice-section li { margin-bottom: 8px; color: #374151; }
 
 @media (max-width:900px) {
+    .toast-notification {
+        min-width: 280px;
+        max-width: 90%;
+        padding: 12px 18px;
+    }
+    
+    .toast-message {
+        font-size: 0.9rem;
+    }
+
     .soil-preview-inline { max-width: 280px; padding: 10px; }
     .soil-preview-inline .soil-img { height: 160px; }
     .soil-preview-inline .soil-label { font-size: 1rem; }
@@ -1021,6 +1499,21 @@ export default {
 }
 
 @media (max-width: 500px) {
+    .toast-notification {
+        top: 15px;
+        min-width: 250px;
+        padding: 10px 16px;
+    }
+    
+    .toast-icon {
+        font-size: 1.1rem;
+        margin-right: 10px;
+    }
+    
+    .toast-message {
+        font-size: 0.85rem;
+    }
+
     .form-section-group {
         grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
         gap: 15px;
